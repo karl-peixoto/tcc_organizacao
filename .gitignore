@@ -1,0 +1,12 @@
+# Ignorar pastas privadas
+artigos_referencias/
+propostas_apresentacoes/
+
+# Ignorar arquivos temporários do sistema
+*.tmp
+*.log
+*.bak
+~$*
+
+# Ignorar arquivos do Jupyter Notebook checkpoints
+.ipynb_checkpoints/

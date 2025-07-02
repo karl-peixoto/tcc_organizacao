@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}DataFrame{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+    <style>
+        body { background: #181818; color: #eee; font-family: Arial, sans-serif; }
+        table.data { background: #222; color: #eee; }
+        .dataTables_wrapper .dataTables_paginate .paginate_button { color: #eee !important; }
+        a { color: #80cbc4; }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <div style="margin: 40px;">
+        {% block content %}{% endblock %}
+    </div>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
+
+
+<style>
+    .df-container {
+        height: 600px;
+        width: 100%;
+        overflow: auto;
+        background: #222;
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 20px;
+    }
+</style>

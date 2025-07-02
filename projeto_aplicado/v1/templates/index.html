@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Menu Inicial{% endblock %}
+{% block content %}
+    <h1>Menu</h1>
+    <ul style="list-style: none; padding: 0;">
+        <li><a href="{{ url_for('main.show_consulta') }}">Ver Consulta</a></li>
+        <li><a href="{{ url_for('main.show_oferta') }}">Ver Oferta</a></li>
+    </ul>
+{% endblock %}
