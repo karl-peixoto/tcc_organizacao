@@ -1,0 +1,30 @@
+
+
+
+
+## Ajustes feitos
+- Utilizei o código da disciplina como referência, ao invés do nome
+- Para as disciplinas que não constavam na oferta, criei um código temporário para representar
+- Reorganização do sistema de pontuações (em que o 3 é o máximo, 1 é o mínimo e 0 representa o não interesse dos professores)
+
+
+## Pendencias
+- A relação dos nomes dos professores ainda não foi corrigida
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

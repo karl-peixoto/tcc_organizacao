@@ -1,5 +1,5 @@
 from flask import Flask
-from views import bp
+from .views import bp
 
 app = Flask(__name__)
 app.register_blueprint(bp)

@@ -88,8 +88,8 @@ def extract_info(html):
     return dados
 
 def main():
-    departamento = "PROGRAMA DE PÓS-GRADUAÇÃO EM ESTATÍSTICA - BRASÍLIA"
-    nivel_ensino = "STRICTO SENSO"
+    departamento = "DEPTO ESTATÍSTICA - BRASÍLIA"
+    nivel_ensino = "GRADUAÇÃO"
 
     html = get_html(departamento, nivel_ensino)
     dados = extract_info(html)
