@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template
 import pandas as pd
-from projeto_aplicado.modelos.otimizadores import OtimizadorPLI 
+from otimizador_pli import OtimizadorPLI 
 
 bp = Blueprint('main', __name__)
 DIR_NAME = 'C:\\Users\\kmenezes\\OneDrive - unb.br\\tcc_organizacao'
