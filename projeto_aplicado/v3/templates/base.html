@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Alocador - V3</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='4' y='14' width='6' height='14' rx='1' fill='%236a0dad'/%3E%3Crect x='13' y='8' width='6' height='20' rx='1' fill='%230d6efd'/%3E%3Crect x='22' y='4' width='6' height='24' rx='1' fill='%23ff9800'/%3E%3C/svg%3E" />
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding:0; background:#fafafa; }
+    header { background:#222; color:#fff; padding:10px 16px; }
+    nav a { color:#fff; margin-right:12px; text-decoration:none; font-weight:bold; }
+    .container { padding:16px; }
+    table { border-collapse: collapse; width:100%; margin-top:12px; }
+    th, td { border:1px solid #ccc; padding:4px 6px; font-size:13px; }
+    th { background:#eee; }
+    .pref-fixada { background:#6a0dad; color:#fff; } /* roxo */
+    .pref-3 { background:#2e8b57; color:#fff; }
+    .pref-2 { background:#ffd54f; }
+    .pref-1 { background:#ff9800; }
+    .pref-0 { background:#f44336; color:#fff; }
+    .badge { display:inline-block; padding:2px 6px; border-radius:4px; font-size:11px; }
+    footer { margin-top:40px; font-size:12px; text-align:center; color:#666; }
+    form div { margin-bottom:8px; }
+    .summary { display:flex; gap:12px; flex-wrap:wrap; margin-top:10px; }
+    .summary .box { background:#fff; border:1px solid #ddd; padding:8px 12px; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,.07); }
+  </style>
+</head>
+<body>
+  <header>
+    <nav>
+      <a href="/">Dados Iniciais</a>
+      <a href="/executar">Execução</a>
+      <a href="/resultado">Resultado</a>
+    </nav>
+  </header>
+  <div class="container">
+    {% block conteudo %}{% endblock %}
+  </div>
+  <footer></footer>
+</body>
+</html>

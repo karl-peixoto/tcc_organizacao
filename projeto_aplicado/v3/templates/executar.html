@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% block conteudo %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<h2 class="mb-3">Executar Otimização</h2>
+<form method="POST" id="form-exec" class="mb-4">
+  <div class="mb-3">
+    <label class="form-label"><strong>Selecione Algoritmos:</strong></label><br>
+    <div class="form-check form-check-inline">
+      <input class="form-check-input" type="checkbox" name="algoritmos" id="algPli" value="pli" checked>
+      <label class="form-check-label" for="algPli">PLI</label>
+    </div>
+    <div class="form-check form-check-inline">
+      <input class="form-check-input" type="checkbox" name="algoritmos" id="algAco" value="aco">
+      <label class="form-check-label" for="algAco">ACO</label>
+    </div>
+    <div class="form-check form-check-inline">
+      <input class="form-check-input" type="checkbox" name="algoritmos" id="algAg" value="ag">
+      <label class="form-check-label" for="algAg">AG</label>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <label for="seed" class="form-label">Seed (opcional)</label>
+      <input type="number" class="form-control form-control-sm" name="seed" id="seed" placeholder="Ex: 123" />
+    </div>
+  </div>
+
+  <div id="params-pli" class="algo-box border rounded p-3 mb-3 bg-light">
+    <h5 class="mb-3">Parâmetros PLI</h5>
+    <div class="row g-3">
+      <div class="col-md-3">
+        <label class="form-label" for="pli_w">Peso Penalidade (W)</label>
+        <input type="number" step="0.1" class="form-control form-control-sm" id="pli_w" name="pli_w" value="{{ defaults.pli.PENALIDADE_W }}" />
+      </div>
+    </div>
+  </div>
+
+  <div id="params-aco" class="algo-box border rounded p-3 mb-3 bg-light" style="display:none;">
+    <h5 class="mb-3">Parâmetros ACO</h5>
+    <div class="row g-3">
+      <div class="col-md-2">
+        <label class="form-label" for="aco_n_formigas">Nº Formigas</label>
+        <input type="number" class="form-control form-control-sm" id="aco_n_formigas" name="aco_n_formigas" value="{{ defaults.aco.ACO_PARAMS.n_formigas }}" />
+      </div>
+      <div class="col-md-2">
+        <label class="form-label" for="aco_n_geracoes">Nº Gerações</label>
+        <input type="number" class="form-control form-control-sm" id="aco_n_geracoes" name="aco_n_geracoes" value="{{ defaults.aco.ACO_PARAMS.n_geracoes }}" />
+      </div>
+      <div class="col-md-2">
+        <label class="form-label" for="aco_alfa">Alfa</label>
+        <input type="number" step="0.1" class="form-control form-control-sm" id="aco_alfa" name="aco_alfa" value="{{ defaults.aco.ACO_PARAMS.alfa }}" />
+      </div>
+      <div class="col-md-2">
+        <label class="form-label" for="aco_beta">Beta</label>
+        <input type="number" step="0.1" class="form-control form-control-sm" id="aco_beta" name="aco_beta" value="{{ defaults.aco.ACO_PARAMS.beta }}" />
+      </div>
+      <div class="col-md-2">
+        <label class="form-label" for="aco_taxa_evaporacao">Taxa Evaporação</label>
+        <input type="number" step="0.01" min="0" max="1" class="form-control form-control-sm" id="aco_taxa_evaporacao" name="aco_taxa_evaporacao" value="{{ defaults.aco.ACO_PARAMS.taxa_evaporacao }}" />
+      </div>
+    </div>
+  </div>
+
+  <div id="params-ag" class="algo-box border rounded p-3 mb-3 bg-light" style="display:none;">
+    <h5 class="mb-3">Parâmetros AG</h5>
+    <div class="row g-3">
+      <div class="col-md-2">
+        <label class="form-label" for="ag_n_populacao">Nº População</label>
+        <input type="number" class="form-control form-control-sm" id="ag_n_populacao" name="ag_n_populacao" value="{{ defaults.ag.AG_PARAMS.n_populacao }}" />
+      </div>
+      <div class="col-md-2">
+        <label class="form-label" for="ag_n_geracoes">Nº Gerações</label>
+        <input type="number" class="form-control form-control-sm" id="ag_n_geracoes" name="ag_n_geracoes" value="{{ defaults.ag.AG_PARAMS.n_geracoes }}" />
+      </div>
+      <div class="col-md-2">
+        <label class="form-label" for="ag_taxa_crossover">Taxa Crossover</label>
+        <input type="number" step="0.01" min="0" max="1" class="form-control form-control-sm" id="ag_taxa_crossover" name="ag_taxa_crossover" value="{{ defaults.ag.AG_PARAMS.taxa_crossover }}" />
+      </div>
+      <div class="col-md-2">
+        <label class="form-label" for="ag_taxa_mutacao">Taxa Mutação</label>
+        <input type="number" step="0.01" min="0" max="1" class="form-control form-control-sm" id="ag_taxa_mutacao" name="ag_taxa_mutacao" value="{{ defaults.ag.AG_PARAMS.taxa_mutacao }}" />
+      </div>
+      <div class="col-md-2">
+        <label class="form-label" for="ag_tamanho_torneio">Tam. Torneio</label>
+        <input type="number" class="form-control form-control-sm" id="ag_tamanho_torneio" name="ag_tamanho_torneio" value="{{ defaults.ag.AG_PARAMS.tamanho_torneio }}" />
+      </div>
+      <div class="col-md-2">
+        <label class="form-label" for="ag_fator_penalidade">Fator Penalidade</label>
+        <input type="number" class="form-control form-control-sm" id="ag_fator_penalidade" name="ag_fator_penalidade" value="{{ defaults.ag.AG_PARAMS.fator_penalidade }}" />
+      </div>
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label"><strong>Alocações Fixas (opcional):</strong></label>
+    <div id="alocacoes-fixas-container" class="border rounded p-3 bg-light"></div>
+    <button type="button" id="btnAddAlocacao" class="btn btn-sm btn-outline-primary mt-2">Adicionar Alocação</button>
+    <textarea id="alocacoes_fixas" name="alocacoes_fixas" hidden></textarea>
+    <div class="form-text">Selecione pares Professor–Disciplina. Serão aplicados como fixos na solução.</div>
+  </div>
+
+  <button type="submit" class="btn btn-success btn-lg">Executar</button>
+</form>
+
+<script id="data-professores" type="application/json">{{ professores|tojson }}</script>
+<script id="data-disciplinas" type="application/json">{{ disciplinas|tojson }}</script>
+<script>
+  const DOCENTES = JSON.parse(document.getElementById('data-professores').textContent);
+  const DISCIPLINAS = JSON.parse(document.getElementById('data-disciplinas').textContent);
+
+  function criarLinha(def={}) {
+    const wrap = document.createElement('div');
+    wrap.className = 'row g-2 align-items-end mb-2 alocacao-item';
+    wrap.innerHTML = `
+      <div class="col-md-5">
+        <label class="form-label small mb-1">Professor</label>
+        <select class="form-select form-select-sm sel-prof">
+          <option value="">-- selecione --</option>
+          ${DOCENTES.map(p=>`<option value="${p.id_docente}">${p.id_docente} - ${(p.docente||p.nome_docente||p.nome||'')}</option>`).join('')}
+        </select>
+      </div>
+      <div class="col-md-5">
+        <label class="form-label small mb-1">Disciplina</label>
+        <select class="form-select form-select-sm sel-disc">
+          <option value="">-- selecione --</option>
+          ${DISCIPLINAS.map(d=>`<option value="${d.id_disciplina}">${d.id_disciplina} - ${(d.disciplina||d.nome_disciplina||'')}</option>`).join('')}
+        </select>
+      </div>
+      <div class="col-md-2 text-end">
+        <button type="button" class="btn btn-sm btn-outline-danger btn-rem">Remover</button>
+      </div>`;
+    wrap.querySelector('.btn-rem').addEventListener('click', ()=> wrap.remove());
+    if(def.professor){ wrap.querySelector('.sel-prof').value = def.professor; }
+    if(def.disciplina){ wrap.querySelector('.sel-disc').value = def.disciplina; }
+    return wrap;
+  }
+  const cont = document.getElementById('alocacoes-fixas-container');
+  cont.appendChild(criarLinha());
+  document.getElementById('btnAddAlocacao').addEventListener('click', ()=> cont.appendChild(criarLinha()));
+
+  document.getElementById('form-exec').addEventListener('submit', ()=>{
+    const linhas = Array.from(document.querySelectorAll('.alocacao-item'));
+    const out = [];
+    linhas.forEach(l=>{
+      const p = l.querySelector('.sel-prof').value.trim();
+      const d = l.querySelector('.sel-disc').value.trim();
+      if(p && d){ out.push({professor: p, disciplina: d}); }
+    });
+    document.getElementById('alocacoes_fixas').value = JSON.stringify(out);
+  });
+
+  function toggleParams() {
+    document.getElementById('params-pli').style.display = document.getElementById('algPli').checked ? 'block':'none';
+    document.getElementById('params-aco').style.display = document.getElementById('algAco').checked ? 'block':'none';
+    document.getElementById('params-ag').style.display = document.getElementById('algAg').checked ? 'block':'none';
+  }
+  ['algPli','algAco','algAg'].forEach(id=> document.getElementById(id).addEventListener('change', toggleParams));
+  toggleParams();
+</script>
+{% endblock %}
