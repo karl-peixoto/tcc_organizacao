@@ -40,6 +40,7 @@ class OtimizadorAG(Otimizador):
         self.populacao = []
         self.melhor_solucao_global = None
         self.melhor_fitness_global = -float('inf')
+        self.metricas_iteracao = []
 
         self.disciplinas_do_problema = self.dados_preparados["disciplinas"]
         self.map_disc_idx = {disc_id: i for i, disc_id in enumerate(self.disciplinas_do_problema)}
@@ -221,10 +222,8 @@ class OtimizadorAG(Otimizador):
             "valor_objetivo": self.melhor_fitness_global
         }
 
-    def _resolver_nucleo(self):
-        """
-        Método principal que orquestra o processo de evolução do Algoritmo Genético.
-        """
+    def _resolver_nucleo(self, callback_iteracao=None):
+        """Resolve AG; chama callback_iteracao por geração se fornecido."""
         self._gerar_populacao_inicial()
 
         for geracao in range(self.n_geracoes):
@@ -251,9 +250,23 @@ class OtimizadorAG(Otimizador):
             
             self.populacao = nova_populacao[:self.n_populacao] # Garante o tamanho da população
 
+            # Coleta métricas da geração
+            melhor_geracao = melhor_fitness_geracao
+            media_geracao = float(np.mean(fitness_populacao)) if fitness_populacao else None
+            self.metricas_iteracao.append({
+                "geracao": geracao + 1,
+                "melhor_geracao": melhor_geracao,
+                "melhor_global": self.melhor_fitness_global,
+                "media_geracao": media_geracao
+            })
+
             if (geracao + 1) % 20 == 0:
-                print(f"Geração {geracao + 1}/{self.n_geracoes} | Melhor Fitness Global: {self.melhor_fitness_global:.2f}")
+                print(f"Geração {geracao + 1}/{self.n_geracoes} | Melhor Global: {self.melhor_fitness_global:.2f}")
 
         print("Otimização AG concluída.")
-        return self._formatar_solucao_final()
+        resultado = self._formatar_solucao_final()
+        if resultado is None:
+            return None
+        resultado["metricas_iteracao"] = self.metricas_iteracao
+        return resultado
 

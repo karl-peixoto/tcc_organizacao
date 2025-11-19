@@ -1,6 +1,8 @@
 import pandas as pd
 from pathlib import Path
 import os
+import random
+import numpy as np
 
 class Otimizador:
     """
@@ -17,6 +19,15 @@ class Otimizador:
         self.alocacoes_fixas = self.config.get("ALOCACOES_FIXAS", [])
         self.pref_servico = self.config.get("PREFERENCIA_SERVICO", 3)
         self.pref_demais = self.config.get("PREFERENCIA_DEMAIS", 0)
+        self.seed = self.config.get("SEED")
+
+        if self.seed is not None:
+            try:
+                random.seed(self.seed)
+                np.random.seed(self.seed)
+                print(f"Seed definida: {self.seed}")
+            except Exception as e:
+                print(f"Falha ao definir seed {self.seed}: {e}")
 
         #Atributo para guardar a parte já resolvida da solução
         self.solucao_parcial_fixa = None
@@ -167,13 +178,12 @@ class Otimizador:
         }
         print("Dados preparados. O problema foi reduzido para a otimização.")
 
-    def resolver(self):
-        """
-        Método Template que orquestra o processo completo de resolução.
-        Este é o método público que deve ser chamado.
+    def resolver(self, callback_iteracao=None):
+        """Executa otimização completa.
+        callback_iteracao: função opcional chamada a cada iteração/geração pelos filhos.
         """
         print("\n--- Iniciando Processo de Otimização ---")
-        solucao_otimizada_parcial = self._resolver_nucleo()
+        solucao_otimizada_parcial = self._resolver_nucleo(callback_iteracao=callback_iteracao)
         
         if solucao_otimizada_parcial is None:
             print("Otimizador não encontrou uma solução.")
@@ -185,7 +195,7 @@ class Otimizador:
         print("--- Processo de Otimização Concluído ---")
         return self.resultados
    
-    def _resolver_nucleo(self):
+    def _resolver_nucleo(self, callback_iteracao=None):
         """Método 'abstrato'. CADA FILHO DEVE IMPLEMENTAR ESTE MÉTODO."""
         raise NotImplementedError("Este método deve ser implementado pela subclasse.")
 
@@ -210,7 +220,10 @@ class Otimizador:
         else:
             df_completo = pd.concat([df_fixo_enriquecido, df_parcial], ignore_index=True)
         
-        return {
-            "alocacao_final": df_completo
-        }
+        # Mantém outras chaves do resultado parcial (valor_objetivo, metricas_iteracao, seed, etc.)
+        resultado_final = {k: v for k, v in solucao_parcial.items() if k != "alocacao_final"}
+        resultado_final["alocacao_final"] = df_completo
+        if "seed" not in resultado_final:
+            resultado_final["seed"] = self.seed
+        return resultado_final
 

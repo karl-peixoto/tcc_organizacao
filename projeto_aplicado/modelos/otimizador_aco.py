@@ -37,6 +37,7 @@ class OtimizadorACO(Otimizador):
         self.info_heuristica = None
         self.melhor_solucao_global = None
         self.melhor_qualidade_global = -1
+        self.metricas_iteracao = []
 
         print("OtimizadorACO pronto.")
 
@@ -164,10 +165,8 @@ class OtimizadorACO(Otimizador):
             "valor_objetivo": self.melhor_qualidade_global
         }
 
-    def _resolver_nucleo(self):
-        """
-        Método principal que orquestra o processo de otimização ACO.
-        """
+    def _resolver_nucleo(self, callback_iteracao=None):
+        """Resolve ACO; suporta callback_iteracao por geração."""
         self._inicializar_parametros()
 
         for geracao in range(self.n_geracoes):
@@ -185,8 +184,33 @@ class OtimizadorACO(Otimizador):
             
             self._atualizar_feromonio(solucoes_da_geracao)
 
-            if (geracao + 1) % 10 == 0: # Imprime o progresso a cada 10 gerações
-                print(f"Geração {geracao + 1}/{self.n_geracoes} | Melhor Qualidade Global: {self.melhor_qualidade_global}")
+            # Coleta métricas da geração
+            if solucoes_da_geracao:
+                qualidades = [q for _, q in solucoes_da_geracao]
+                melhor_geracao = max(qualidades)
+                media_geracao = float(np.mean(qualidades))
+            else:
+                melhor_geracao = None
+                media_geracao = None
+            metrica = {
+                "geracao": geracao + 1,
+                "melhor_geracao": melhor_geracao,
+                "melhor_global": self.melhor_qualidade_global,
+                "media_geracao": media_geracao
+            }
+            self.metricas_iteracao.append(metrica)
+            if callback_iteracao is not None:
+                try:
+                    callback_iteracao(metrica)
+                except Exception as e:
+                    print(f"Callback geração {geracao+1} falhou: {e}")
+
+            if (geracao + 1) % 10 == 0:
+                print(f"Geração {geracao + 1}/{self.n_geracoes} | Melhor Global: {self.melhor_qualidade_global}")
 
         print("Otimização ACO concluída.")
-        return self._formatar_solucao_final()
+        resultado = self._formatar_solucao_final()
+        if resultado is None:
+            return None
+        resultado["metricas_iteracao"] = self.metricas_iteracao
+        return resultado
