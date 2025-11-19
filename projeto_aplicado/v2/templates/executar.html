@@ -1,0 +1,352 @@
+{% extends 'base.html' %}
+
+{% block title %}Executar Otimização{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Executar Algoritmos de Otimização</h2>
+    <p>Selecione os algoritmos, ajuste os parâmetros e execute a otimização.</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('executar') }}" class="mt-4" id="formSync">
+        <div class="mb-3">
+            <label class="form-label"><strong>Selecione os Algoritmos:</strong></label>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="pli" id="checkPLI" name="algoritmos" checked>
+                <label class="form-check-label" for="checkPLI">Programação Linear Inteira (PLI)</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="aco" id="checkACO" name="algoritmos">
+                <label class="form-check-label" for="checkACO">Colônia de Formigas (ACO)</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="ag" id="checkAG" name="algoritmos">
+                <label class="form-check-label" for="checkAG">Algoritmo Genético (AG)</label>
+            </div>
+        </div>
+
+                <div class="mb-3">
+                    <label class="form-label"><strong>Alocações Fixas:</strong> <small class="text-muted">(Opcional)</small></label>
+                    <div id="alocacoes-fixas-container" class="border rounded p-3 bg-light">
+                        <!-- Linhas serão inseridas via JS -->
+                    </div>
+                    <button type="button" id="btnAddAlocacao" class="btn btn-sm btn-outline-primary mt-2">Adicionar nova alocação</button>
+                    <textarea id="alocacoes_fixas" name="alocacoes_fixas" hidden>{{ config_pli.ALOCACOES_FIXAS | tojson }}</textarea>
+                    <div class="form-text">Selecione pares Professor–Disciplina. Clique em "Adicionar nova alocação" para incluir mais. Valores serão serializados automaticamente.</div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-3">
+                        <label for="seed" class="form-label">Seed (Reprodutibilidade)</label>
+                        <input type="number" class="form-control form-control-sm" id="seed" name="seed" placeholder="Ex: 12345">
+                    </div>
+                </div>
+
+        <hr>
+
+        <div id="params-pli" class="algo-params mb-4 p-3 border rounded bg-light">
+            <h5>Parâmetros PLI</h5>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="pli_w" class="form-label">Peso Penalidade (W)</label>
+                    <input type="number" step="0.1" class="form-control form-control-sm" id="pli_w" name="pli_w" value="{{ config_pli.PENALIDADE_W }}">
+                </div>
+            </div>
+        </div>
+
+        <div id="params-aco" class="algo-params mb-4 p-3 border rounded bg-light">
+             <h5>Parâmetros ACO</h5>
+             <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="aco_n_formigas" class="form-label">Nº Formigas</label>
+                    <input type="number" class="form-control form-control-sm" id="aco_n_formigas" name="aco_n_formigas" value="{{ config_aco.ACO_PARAMS.n_formigas }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="aco_n_geracoes" class="form-label">Nº Gerações</label>
+                    <input type="number" class="form-control form-control-sm" id="aco_n_geracoes" name="aco_n_geracoes" value="{{ config_aco.ACO_PARAMS.n_geracoes }}">
+                </div>
+                 <div class="col-md-4">
+                    <label for="aco_taxa_evaporacao" class="form-label">Taxa Evaporação</label>
+                    <input type="number" step="0.01" min="0" max="1" class="form-control form-control-sm" id="aco_taxa_evaporacao" name="aco_taxa_evaporacao" value="{{ config_aco.ACO_PARAMS.taxa_evaporacao }}">
+                </div>
+                <div class="col-md-6">
+                    <label for="aco_alfa" class="form-label">Alfa (Import. Feromônio)</label>
+                    <input type="number" step="0.1" class="form-control form-control-sm" id="aco_alfa" name="aco_alfa" value="{{ config_aco.ACO_PARAMS.alfa }}">
+                </div>
+                <div class="col-md-6">
+                    <label for="aco_beta" class="form-label">Beta (Import. Heurística)</label>
+                    <input type="number" step="0.1" class="form-control form-control-sm" id="aco_beta" name="aco_beta" value="{{ config_aco.ACO_PARAMS.beta }}">
+                </div>
+             </div>
+        </div>
+
+        <div id="params-ag" class="algo-params mb-4 p-3 border rounded bg-light">
+             <h5>Parâmetros AG</h5>
+              <div class="row g-3">
+                 <div class="col-md-4">
+                    <label for="ag_n_populacao" class="form-label">Nº População</label>
+                    <input type="number" class="form-control form-control-sm" id="ag_n_populacao" name="ag_n_populacao" value="{{ config_ag.AG_PARAMS.n_populacao }}">
+                </div>
+                 <div class="col-md-4">
+                    <label for="ag_n_geracoes" class="form-label">Nº Gerações</label>
+                    <input type="number" class="form-control form-control-sm" id="ag_n_geracoes" name="ag_n_geracoes" value="{{ config_ag.AG_PARAMS.n_geracoes }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="ag_fator_penalidade" class="form-label">Fator Penalidade</label>
+                    <input type="number" class="form-control form-control-sm" id="ag_fator_penalidade" name="ag_fator_penalidade" value="{{ config_ag.AG_PARAMS.fator_penalidade }}">
+                </div>
+                 <div class="col-md-4">
+                    <label for="ag_taxa_crossover" class="form-label">Taxa Crossover</label>
+                    <input type="number" step="0.01" min="0" max="1" class="form-control form-control-sm" id="ag_taxa_crossover" name="ag_taxa_crossover" value="{{ config_ag.AG_PARAMS.taxa_crossover }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="ag_taxa_mutacao" class="form-label">Taxa Mutação</label>
+                    <input type="number" step="0.01" min="0" max="1" class="form-control form-control-sm" id="ag_taxa_mutacao" name="ag_taxa_mutacao" value="{{ config_ag.AG_PARAMS.taxa_mutacao }}">
+                </div>
+                 <div class="col-md-4">
+                    <label for="ag_tamanho_torneio" class="form-label">Tam. Torneio</label>
+                    <input type="number" class="form-control form-control-sm" id="ag_tamanho_torneio" name="ag_tamanho_torneio" value="{{ config_ag.AG_PARAMS.tamanho_torneio }}">
+                </div>
+              </div>
+        </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg">Executar Sincrono</button>
+                    <button type="button" id="btnExecutarAsync" class="btn btn-outline-success btn-lg">Executar Assíncrono</button>
+                </div>
+    </form>
+
+        <hr class="my-4">
+        <h4>Execuções Assíncronas</h4>
+        <p class="text-muted">Acompanhe o progresso e convergência em tempo real.</p>
+        <div id="async-jobs" class="row g-4"></div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script id="data-docentes" type="application/json">{{ professores|tojson }}</script>
+<script id="data-disciplinas" type="application/json">{{ disciplinas|tojson }}</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+        // Dados para selects
+        // Serializa listas via tag <script type="application/json">
+        const DOCENTES = JSON.parse(document.getElementById('data-docentes').textContent);
+        const DISCIPLINAS = JSON.parse(document.getElementById('data-disciplinas').textContent);
+        const FIXAS_INICIAIS = (() => { try { return JSON.parse(document.getElementById('alocacoes_fixas').value || '[]'); } catch(e){ return []; } })();
+
+        function criarLinhaAlocacao(def={}) {
+                const wrap = document.createElement('div');
+                wrap.className = 'row g-2 align-items-end mb-2 alocacao-fixa-item';
+                wrap.innerHTML = `
+                    <div class="col-md-5">
+                        <label class="form-label small mb-1">Professor</label>
+                        <select class="form-select form-select-sm sel-prof">
+                            <option value="">-- selecione --</option>
+                            ${DOCENTES.map(p=>`<option value="${p.id_docente}">${p.id_docente} - ${p.docente}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label small mb-1">Disciplina</label>
+                        <select class="form-select form-select-sm sel-disc">
+                            <option value="">-- selecione --</option>
+                            ${DISCIPLINAS.map(d=>`<option value="${d.id_disciplina}">${d.id_disciplina} - ${d.disciplina}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="col-md-2 text-end">
+                        <button type="button" class="btn btn-sm btn-outline-danger btn-rem">Remover</button>
+                    </div>`;
+                if(def.professor){ wrap.querySelector('.sel-prof').value = def.professor; }
+                if(def.disciplina){ wrap.querySelector('.sel-disc').value = def.disciplina; }
+                wrap.querySelector('.btn-rem').addEventListener('click', ()=> wrap.remove());
+                return wrap;
+        }
+        function inicializarFixas(){
+                const cont = document.getElementById('alocacoes-fixas-container');
+                if(FIXAS_INICIAIS.length === 0){
+                        cont.appendChild(criarLinhaAlocacao());
+                } else {
+                        FIXAS_INICIAIS.forEach(f=>{
+                                cont.appendChild(criarLinhaAlocacao({professor: f.professor, disciplina: f.disciplina}));
+                        });
+                }
+        }
+        document.getElementById('btnAddAlocacao').addEventListener('click', ()=>{
+                document.getElementById('alocacoes-fixas-container').appendChild(criarLinhaAlocacao());
+        });
+        inicializarFixas();
+        // Serialização antes do submit
+        document.getElementById('formSync').addEventListener('submit', ()=>{
+                const linhas = Array.from(document.querySelectorAll('.alocacao-fixa-item'));
+                const registros = [];
+                linhas.forEach(l => {
+                        const prof = l.querySelector('.sel-prof').value.trim();
+                        const disc = l.querySelector('.sel-disc').value.trim();
+                        if(prof && disc){
+                                registros.push({professor: prof, disciplina: disc});
+                        }
+                });
+                document.getElementById('alocacoes_fixas').value = JSON.stringify(registros);
+        });
+
+    const checkboxes = document.querySelectorAll('input[name="algoritmos"]');
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', function() {
+            const paramsDiv = document.getElementById(`params-${this.value}`);
+            if (paramsDiv) {
+                paramsDiv.style.display = this.checked ? 'block' : 'none';
+            }
+        });
+        // Estado inicial
+        const paramsDiv = document.getElementById(`params-${cb.value}`);
+        if (paramsDiv) {
+             paramsDiv.style.display = cb.checked ? 'block' : 'none';
+        }
+    });
+     // Garante que pelo menos um checkbox esteja marcado para o estado inicial
+    checkboxes.forEach(cb => {
+         const paramsDiv = document.getElementById(`params-${cb.value}`);
+         if (paramsDiv && cb.checked) {
+              paramsDiv.style.display = 'block';
+         } else if (paramsDiv) {
+              paramsDiv.style.display = 'none';
+         }
+    });
+
+        // Utilitário: coleta parâmetros da UI para um algoritmo específico
+        function coletarConfig(alg) {
+            const cfg = { algoritmo: alg };
+            const seedVal = document.getElementById('seed').value.trim();
+            if (seedVal) cfg.seed = parseInt(seedVal,10);
+            try {
+                const fixasStr = document.getElementById('alocacoes_fixas').value.trim();
+                if (fixasStr) cfg.alocacoes_fixas = JSON.parse(fixasStr);
+            } catch(e){ console.warn('JSON alocacoes_fixas inválido', e); }
+            if (alg === 'pli') {
+                cfg.pli_w = parseFloat(document.getElementById('pli_w').value);
+            } else if (alg === 'aco') {
+                cfg.n_formigas = parseInt(document.getElementById('aco_n_formigas').value,10);
+                cfg.n_geracoes = parseInt(document.getElementById('aco_n_geracoes').value,10);
+                cfg.alfa = parseFloat(document.getElementById('aco_alfa').value);
+                cfg.beta = parseFloat(document.getElementById('aco_beta').value);
+                cfg.taxa_evaporacao = parseFloat(document.getElementById('aco_taxa_evaporacao').value);
+            } else if (alg === 'ag') {
+                cfg.n_populacao = parseInt(document.getElementById('ag_n_populacao').value,10);
+                cfg.n_geracoes = parseInt(document.getElementById('ag_n_geracoes').value,10);
+                cfg.fator_penalidade = parseInt(document.getElementById('ag_fator_penalidade').value,10);
+                cfg.taxa_crossover = parseFloat(document.getElementById('ag_taxa_crossover').value);
+                cfg.taxa_mutacao = parseFloat(document.getElementById('ag_taxa_mutacao').value);
+                cfg.tamanho_torneio = parseInt(document.getElementById('ag_tamanho_torneio').value,10);
+            }
+            return cfg;
+        }
+
+        function criarCardJob(jobId, alg){
+            const col = document.createElement('div');
+            col.className = 'col-12';
+            col.innerHTML = `
+                <div class="card" id="card-${jobId}">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><strong>${alg.toUpperCase()}</strong> | Job: <code>${jobId}</code></span>
+                        <span class="badge bg-info" id="status-${jobId}">iniciando...</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2">
+                            <div class="progress" style="height:20px;">
+                                <div class="progress-bar" id="pb-${jobId}" role="progressbar" style="width:0%;">0%</div>
+                            </div>
+                        </div>
+                        <canvas id="chart-${jobId}" height="120"></canvas>
+                        <div class="mt-2 small" id="info-${jobId}"></div>
+                    </div>
+                </div>`;
+            document.getElementById('async-jobs').appendChild(col);
+            const ctx = document.getElementById(`chart-${jobId}`).getContext('2d');
+            const chart = new Chart(ctx, {
+                type: 'line',
+                data: { labels: [], datasets: [
+                    { label: 'Melhor Global', data: [], borderColor: '#0d6efd', tension: 0.15 },
+                    { label: 'Melhor Geração', data: [], borderColor: '#198754', tension: 0.15 },
+                    { label: 'Média Geração', data: [], borderColor: '#6c757d', tension: 0.15 }
+                ]},
+                options: { responsive: true, animation: false, scales:{ x:{ title:{display:true,text:'Geração'}}, y:{ title:{display:true,text:'Objetivo'} } } }
+            });
+            return chart;
+        }
+
+        async function iniciarAsync(alg){
+            const cfg = coletarConfig(alg);
+            const resp = await fetch("{{ url_for('executar_async') }}", {
+                method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(cfg)
+            });
+            if(!resp.ok){
+                alert('Falha ao iniciar job '+alg);
+                return;
+            }
+            const data = await resp.json();
+            const jobId = data.job_id;
+            const chart = criarCardJob(jobId, alg);
+            pollJob(jobId, chart);
+        }
+
+        async function pollJob(jobId, chart){
+            const statusEl = document.getElementById('status-'+jobId);
+            const pb = document.getElementById('pb-'+jobId);
+            const info = document.getElementById('info-'+jobId);
+            async function tick(){
+                const r = await fetch('/progresso/'+jobId);
+                if(!r.ok){ statusEl.textContent='erro'; statusEl.className='badge bg-danger'; return; }
+                const st = await r.json();
+                statusEl.textContent = st.status;
+                if(st.status==='error'){ statusEl.className='badge bg-danger'; info.textContent = st.erro || 'Erro desconhecido'; return; }
+                const pct = Math.round((st.progress||0)*100);
+                pb.style.width = pct+'%';
+                pb.textContent = pct+'%';
+                if(st.melhor_objetivo!=null){ info.textContent = 'Melhor Objetivo: '+st.melhor_objetivo; }
+                // Atualiza gráfico com métricas últimas
+                if(st.metricas_ultimas){
+                    const labels = st.metricas_ultimas.map(m=>m.geracao);
+                    chart.data.labels = labels;
+                    const melhorGlobal = st.metricas_ultimas.map(m=>m.melhor_global);
+                    const melhorGeracao = st.metricas_ultimas.map(m=>m.melhor_geracao);
+                    const mediaGeracao = st.metricas_ultimas.map(m=>m.media_geracao);
+                    chart.data.datasets[0].data = melhorGlobal;
+                    chart.data.datasets[1].data = melhorGeracao;
+                    chart.data.datasets[2].data = mediaGeracao;
+                    chart.update();
+                }
+                if(st.status==='done'){
+                    statusEl.className='badge bg-success';
+                    if(st.id_execucao_final){
+                        const link = document.createElement('a');
+                        link.href = '/historico/'+st.id_execucao_final;
+                        link.textContent = 'Ver detalhes';
+                        link.className='btn btn-sm btn-outline-primary ms-2';
+                        info.appendChild(link);
+                    }
+                    return; // stop polling
+                }
+                setTimeout(tick, 1500);
+            }
+            tick();
+        }
+
+        document.getElementById('btnExecutarAsync').addEventListener('click', ()=>{
+            const selecionados = Array.from(document.querySelectorAll('input[name="algoritmos"]:checked')).map(e=>e.value);
+            if(selecionados.length===0){ alert('Selecione ao menos um algoritmo'); return; }
+            // Dispara cada algoritmo em job separado
+            selecionados.forEach(alg=>iniciarAsync(alg));
+        });
+</script>
+{% endblock %}

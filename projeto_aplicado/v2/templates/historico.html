@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Histórico de Execuções</h2>
+  <form class="row g-3 mb-3" method="get">
+    <div class="col-auto">
+      <label class="form-label">Algoritmo</label>
+      <select name="algoritmo" class="form-select">
+        <option value="">Todos</option>
+        {% for alg in algoritmos %}
+          <option value="{{ alg }}" {% if alg == algoritmo_filtro %}selected{% endif %}>{{ alg }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto">
+      <label class="form-label">Seed</label>
+      <input type="text" name="seed" value="{{ seed_filtro or '' }}" class="form-control" placeholder="Seed">
+    </div>
+    <div class="col-auto align-self-end">
+      <button class="btn btn-primary" type="submit">Filtrar</button>
+      <a href="{{ url_for('historico') }}" class="btn btn-secondary">Limpar</a>
+      <a href="{{ url_for('historico_export', algoritmo=algoritmo_filtro, seed=seed_filtro) }}" class="btn btn-outline-success">Exportar CSV</a>
+    </div>
+  </form>
+
+  <table class="table table-sm table-bordered table-hover">
+    <thead class="table-light">
+      <tr>
+        <th>ID</th>
+        <th>Data/Hora</th>
+        <th>Algoritmo</th>
+        <th>Valor Objetivo</th>
+        <th>Soma Pref.</th>
+        <th>Penalidade</th>
+        <th># Pref 0</th>
+        <th>Tempo (s)</th>
+        <th>Seed</th>
+        <th>Iterações</th>
+        <th>Detalhes</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in execucoes %}
+        <tr>
+          <td>{{ row.id_execucao }}</td>
+          <td style="white-space:nowrap;">{{ row.data_hora }}</td>
+          <td>{{ row.algoritmo }}</td>
+          <td>{{ row.valor_objetivo }}</td>
+          <td>{{ row.soma_preferencias }}</td>
+          <td>{{ row.penalidade_total }}</td>
+          <td>{{ row.num_alocacoes_preferencia_zero }}</td>
+          <td>{{ row.tempo_execucao }}</td>
+          <td>{{ row.seed }}</td>
+          <td>{{ row.n_iteracoes }}</td>
+          <td><a class="btn btn-outline-secondary btn-sm" href="{{ url_for('historico_detalhe', id_execucao=row.id_execucao) }}">Ver</a></td>
+        </tr>
+      {% endfor %}
+      {% if execucoes|length == 0 %}
+        <tr><td colspan="11" class="text-center">Nenhuma execução encontrada.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% block content %}
+{% set prog = group.progress or 0 %}
+<h2>Resultados do Lote</h2>
+<div class="mb-3">
+  <a href="{{ url_for('simulacoes') }}" class="btn btn-secondary">Novo Lote</a>
+  <a href="{{ url_for('dashboard') }}" class="btn btn-link">Início</a>
+  {% if group.status == 'done' %}
+    <a href="{{ url_for('simulacoes_resultados_export', group_id=group.group_id) }}" class="btn btn-outline-success">Exportar Grupo CSV</a>
+  {% endif %}
+</div>
+<div id="status" data-aggregated="{{ 1 if agregado else 0 }}" class="alert alert-info">Status: {{ group.status }}</div>
+<div class="progress mb-3" style="height:25px;">
+  <div id="progressBar" class="progress-bar" role="progressbar" data-progress="{{ prog }}">{{ prog }}%</div>
+</div>
+<h5>Itens</h5>
+<table class="table table-sm">
+  <thead><tr><th>Job ID</th><th>Algoritmo</th><th>Seed</th><th>Status</th><th>Progresso (%)</th><th>Melhor Objetivo</th></tr></thead>
+  <tbody id="itemsBody">
+    {% for jid,it in group.items.items() %}
+    <tr data-job="{{ jid }}">
+      <td>{{ jid }}</td>
+      <td>{{ it.algoritmo }}</td>
+      <td>{{ it.seed or '' }}</td>
+      <td class="status">{{ it.status }}</td>
+      <td class="progress_item">{{ it.progress or 0 }}</td>
+      <td class="objetivo">{{ it.melhor_objetivo or '' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% if agregado %}
+<div class="card p-3 mt-3">
+  <h5>Estatísticas</h5>
+  <ul class="mb-0">
+    <li>Quantidade: {{ agregado.qtd }}</li>
+    <li>Média Objetivo: {{ '%.2f'|format(agregado.media_objetivo) }}</li>
+    <li>Melhor: {{ agregado.melhor }}</li>
+    <li>Pior: {{ agregado.pior }}</li>
+    <li>Desvio Padrão: {{ '%.2f'|format(agregado.desvio_objetivo) }}</li>
+    <li>Média Tempo (s): {{ agregado.media_tempo if agregado.media_tempo else 'N/A' }}</li>
+  </ul>
+</div>
+{% endif %}
+<script>
+const groupId = '{{ group.group_id }}';
+const aggregated = document.getElementById('status').dataset.aggregated === '1';
+function poll(){
+  fetch("{{ url_for('simulacoes_progresso', group_id='__X__') }}".replace("__X__", groupId))
+    .then(r=>r.json())
+    .then(d=>{
+      if(d.erro){return;}
+      document.getElementById('status').textContent = 'Status: ' + d.status;
+      const pb = document.getElementById('progressBar');
+      const pct = d.progress || 0;
+      pb.style.width = pct + '%';
+      pb.textContent = pct + '%';
+      for(const jid in d.items){
+        const row = document.querySelector('tr[data-job="'+jid+'"]');
+        if(!row) continue;
+        row.querySelector('.status').textContent = d.items[jid].status;
+        row.querySelector('.objetivo').textContent = d.items[jid].melhor_objetivo || '';
+        row.querySelector('.progress_item').textContent = (d.items[jid].progress||0).toFixed(2);
+      }
+      if(d.status !== 'done'){
+        setTimeout(poll, 3000);
+      } else if(!aggregated){
+        location.reload();
+      }
+    });
+}
+if('{{ group.status }}' !== 'done'){
+  setTimeout(poll, 500);
+} else {
+  // Ajusta barra inicial se já concluído
+  const pb = document.getElementById('progressBar');
+  pb.style.width = '{{ prog }}%' ;
+}
+</script>
+{% endblock %}

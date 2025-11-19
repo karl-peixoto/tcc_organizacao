@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .pref-dot {display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:4px;vertical-align:middle;}
+  .pref-alta {background:#2e7d32;}
+  .pref-media {background:#ffb300;}
+  .pref-baixa {background:#e53935;}
+  .pref-fixada {background:#1976d2;}
+  .resumo-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-top:12px;}
+  .resumo-item {background:#f8f9fa;border:1px solid #eee;border-radius:6px;padding:6px 8px;font-size:0.85rem;}
+  .resumo-item strong {display:block;font-size:0.75rem;text-transform:uppercase;color:#555;}
+</style>
+<div class="container mt-4">
+  <h2 class="mb-3">Execução {{ id_execucao }}</h2>
+  <div class="d-flex gap-2 mb-3 flex-wrap">
+    <a href="{{ url_for('historico') }}" class="btn btn-sm btn-secondary">Voltar</a>
+    <a href="{{ url_for('export_alocacao', id_execucao=id_execucao) }}" class="btn btn-sm btn-outline-success">Exportar Alocação CSV</a>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header">Resumo da Execução</div>
+    <div class="card-body">
+      <div class="row mb-2">
+        <div class="col-md-3"><strong>Algoritmo:</strong> {{ dados.algoritmo }}</div>
+        <div class="col-md-3"><strong>Valor Objetivo:</strong> {{ dados.valor_objetivo }}</div>
+        <div class="col-md-3"><strong>Soma Preferências:</strong> {{ dados.soma_preferencias }}</div>
+        <div class="col-md-3"><strong>Penalidade Total:</strong> {{ dados.penalidade_total }}</div>
+      </div>
+      <div class="row mb-2">
+        <div class="col-md-3"><strong>Tempo Execução (s):</strong> {{ dados.tempo_execucao }}</div>
+        <div class="col-md-3"><strong>Seed:</strong> {{ dados.seed }}</div>
+        <div class="col-md-3"><strong>Iterações:</strong> {{ metricas_iteracao|length }}</div>
+        <div class="col-md-3"><strong>Alocações Totais:</strong> {{ resumo_preferencias.total if resumo_preferencias else alocacao|length }}</div>
+      </div>
+      {% if resumo_preferencias %}
+      <div class="resumo-grid">
+        <div class="resumo-item">
+          <strong>Alto (3)</strong>
+          <span class="pref-dot pref-alta"></span>{{ resumo_preferencias.pref_3 }} ({{ '%.1f' % resumo_preferencias.pct_3 }}%)
+        </div>
+        <div class="resumo-item">
+          <strong>Médio (2)</strong>
+          <span class="pref-dot pref-media"></span>{{ resumo_preferencias.pref_2 }} ({{ '%.1f' % resumo_preferencias.pct_2 }}%)
+        </div>
+        <div class="resumo-item">
+          <strong>Baixo (1)</strong>
+          <span class="pref-dot pref-baixa"></span>{{ resumo_preferencias.pref_1 }} ({{ '%.1f' % resumo_preferencias.pct_1 }}%)
+        </div>
+        <div class="resumo-item">
+          <strong>Baixo (0)</strong>
+          <span class="pref-dot pref-baixa"></span>{{ resumo_preferencias.pref_0 }} ({{ '%.1f' % resumo_preferencias.pct_0 }}%)
+        </div>
+      </div>
+      <div class="mt-2 small text-muted">Legenda: <span class="pref-dot pref-alta"></span>Alto &nbsp; <span class="pref-dot pref-media"></span>Médio &nbsp; <span class="pref-dot pref-baixa"></span>Baixo &nbsp; <span class="pref-dot pref-fixada"></span>Fixada</div>
+      <div class="mt-3">
+        <canvas id="distPreferenciasChart" height="160"
+          data-counts="{{ resumo_preferencias.pref_3 }},{{ resumo_preferencias.pref_2 }},{{ resumo_preferencias.pref_1 }},{{ resumo_preferencias.pref_0 }}"
+          data-perc="{{ '%.2f' % resumo_preferencias.pct_3 }},{{ '%.2f' % resumo_preferencias.pct_2 }},{{ '%.2f' % resumo_preferencias.pct_1 }},{{ '%.2f' % resumo_preferencias.pct_0 }}"
+        ></canvas>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header">Configuração Utilizada</div>
+    <div class="card-body">
+      <pre style="max-height:300px;overflow:auto;">{{ config|tojson(indent=2) }}</pre>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header">Alocação Final</div>
+    <div class="card-body">
+      <table class="table table-sm table-bordered align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Disciplina</th>
+            <th>Professor</th>
+            <th>Pref.</th>
+            <th>Indicador</th>
+            <th>Carga</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for linha in alocacao %}
+            <tr>
+              <td>{{ linha.id_disciplina }}<br><small class="text-muted">{{ linha.disciplina_nome }}</small></td>
+              <td>{{ linha.id_docente }}<br><small class="text-muted">{{ linha.docente_nome }}</small></td>
+              <td>{{ linha.preferencia }}</td>
+              <td>
+                <span class="pref-dot {{ linha.nivel_css }}" title="{{ linha.nivel_label }}"></span>{{ linha.nivel_label }}
+                {% if linha.fixada %}<span class="badge bg-primary ms-1">Fixada</span>{% endif %}
+              </td>
+              <td>{{ linha.ch_disciplina }}</td>
+            </tr>
+          {% endfor %}
+          {% if alocacao|length == 0 %}
+            <tr><td colspan="5" class="text-center">Sem dados.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+      {% if analise %}
+      <div class="mt-3">
+        <h6>Métricas (Analisador)</h6>
+        <ul class="small">
+          <li>Escore Total: {{ analise.escore_total }}</li>
+          <li>Distribuição Prefs: 3={{ analise.distribuicao_preferencias.pref_3 }}, 2={{ analise.distribuicao_preferencias.pref_2 }}, 1={{ analise.distribuicao_preferencias.pref_1 }}, 0={{ analise.distribuicao_preferencias.pref_0 }}</li>
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if metricas_iteracao|length > 0 %}
+  <div class="card mb-3">
+    <div class="card-header">Métricas por Iteração/Geração</div>
+    <div class="card-body">
+      <table class="table table-sm table-striped">
+        <thead class="table-light"><tr><th>#</th><th>Melhor Geração</th><th>Melhor Global</th><th>Média Geração</th></tr></thead>
+        <tbody>
+          {% for m in metricas_iteracao %}
+            <tr>
+              <td>{{ m.geracao }}</td>
+              <td>{{ m.melhor_geracao }}</td>
+              <td>{{ m.melhor_global }}</td>
+              <td>{{ m.media_geracao }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+{% if resumo_preferencias %}
+{% block scripts %}
+  {{ super() }}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    (function(){
+      const el = document.getElementById('distPreferenciasChart');
+      if(!el) return;
+      const counts = el.dataset.counts.split(',').map(Number);
+      const perc = el.dataset.perc.split(',').map(Number);
+      new Chart(el, {
+        type: 'bar',
+        data: {
+          labels: ['Alto (3)','Médio (2)','Baixo (1)','Baixo (0)'],
+          datasets: [
+            {
+              label: 'Contagem',
+              data: counts,
+              backgroundColor: ['#2e7d32','#ffb300','#e53935','#b71c1c']
+            },
+            {
+              label: 'Percentual (%)',
+              data: perc,
+              type: 'line',
+              yAxisID: 'yPerc',
+              borderColor: '#1976d2',
+              backgroundColor: 'rgba(25,118,210,0.15)',
+              tension: 0.25
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          interaction: { mode: 'index', intersect: false },
+          scales: {
+            y: { beginAtZero: true, title: { display: true, text: 'Contagem' } },
+            yPerc: { beginAtZero: true, position: 'right', title: { display: true, text: '%' }, suggestedMax: 100 }
+          },
+          plugins: {
+            title: { display: true, text: 'Distribuição de Preferências' },
+            tooltip: { callbacks: { label: (ctx) => ctx.dataset.label+': '+ctx.formattedValue + (ctx.dataset.label.includes('Percentual') ? '%' : '') } }
+          }
+        }
+      });
+    })();
+  </script>
+{% endblock %}
+{% endif %}

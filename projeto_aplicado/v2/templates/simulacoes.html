@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Simulações em Lote</h2>
+<form method="post" class="mb-4">
+  <div class="card p-3 mb-3">
+    <h5>Algoritmos</h5>
+    <div class="form-check form-check-inline">
+      <input class="form-check-input" type="checkbox" name="algoritmos" value="pli" id="algPli">
+      <label class="form-check-label" for="algPli">PLI</label>
+    </div>
+    <div class="form-check form-check-inline">
+      <input class="form-check-input" type="checkbox" name="algoritmos" value="aco" id="algAco">
+      <label class="form-check-label" for="algAco">ACO</label>
+    </div>
+    <div class="form-check form-check-inline">
+      <input class="form-check-input" type="checkbox" name="algoritmos" value="ag" id="algAg">
+      <label class="form-check-label" for="algAg">AG</label>
+    </div>
+  </div>
+  <div class="card p-3 mb-3">
+    <h5>Seeds (lista separada por vírgula)</h5>
+    <input type="text" name="seeds" class="form-control" placeholder="Ex: 1,2,3,42">
+  </div>
+  <div class="card p-3 mb-3">
+    <h5>Parâmetros PLI (W)</h5>
+    <div class="row g-2">
+      <div class="col">
+        <label>Início</label>
+        <input type="number" step="1" name="pli_w_start" class="form-control" placeholder="5">
+      </div>
+      <div class="col">
+        <label>Fim</label>
+        <input type="number" step="1" name="pli_w_stop" class="form-control" placeholder="15">
+      </div>
+      <div class="col">
+        <label>Passo</label>
+        <input type="number" step="1" name="pli_w_step" class="form-control" placeholder="5">
+      </div>
+    </div>
+  </div>
+  <div class="card p-3 mb-3">
+    <h5>Parâmetros ACO (n_geracoes)</h5>
+    <div class="row g-2">
+      <div class="col">
+        <label>Início</label>
+        <input type="number" step="1" name="aco_n_geracoes_start" class="form-control" placeholder="20">
+      </div>
+      <div class="col">
+        <label>Fim</label>
+        <input type="number" step="1" name="aco_n_geracoes_stop" class="form-control" placeholder="60">
+      </div>
+      <div class="col">
+        <label>Passo</label>
+        <input type="number" step="1" name="aco_n_geracoes_step" class="form-control" placeholder="20">
+      </div>
+    </div>
+    <div class="row g-2 mt-2">
+      <div class="col">
+        <label>Lista Alfa (opcional)</label>
+        <input type="text" name="aco_alfa_list" class="form-control" placeholder="Ex: 1.0,1.2,1.5">
+      </div>
+      <div class="col">
+        <label>Lista Beta (opcional)</label>
+        <input type="text" name="aco_beta_list" class="form-control" placeholder="Ex: 2.0,2.5,3.0">
+      </div>
+    </div>
+  </div>
+  <div class="card p-3 mb-3">
+    <h5>Parâmetros AG (n_geracoes)</h5>
+    <div class="row g-2">
+      <div class="col">
+        <label>Início</label>
+        <input type="number" step="1" name="ag_n_geracoes_start" class="form-control" placeholder="30">
+      </div>
+      <div class="col">
+        <label>Fim</label>
+        <input type="number" step="1" name="ag_n_geracoes_stop" class="form-control" placeholder="90">
+      </div>
+      <div class="col">
+        <label>Passo</label>
+        <input type="number" step="1" name="ag_n_geracoes_step" class="form-control" placeholder="30">
+      </div>
+    </div>
+    <div class="row g-2 mt-2">
+      <div class="col">
+        <label>Lista Taxa Mutação (opcional)</label>
+        <input type="text" name="ag_taxa_mutacao_list" class="form-control" placeholder="Ex: 0.01,0.05,0.1">
+      </div>
+    </div>
+  </div>
+  <button class="btn btn-primary">Iniciar Lote</button>
+  <a href="{{ url_for('simulacoes') }}" class="btn btn-secondary">Limpar</a>
+  <a href="{{ url_for('dashboard') }}" class="btn btn-link">Voltar</a>
+</form>
+{% endblock %}
