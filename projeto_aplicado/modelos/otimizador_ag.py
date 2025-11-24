@@ -35,6 +35,7 @@ class OtimizadorAG(Otimizador):
         self.taxa_mutacao = params.get("taxa_mutacao", 0.02)
         self.tamanho_torneio = params.get("tamanho_torneio", 3)
         self.fator_penalidade = params.get("fator_penalidade", 1000)
+        self.tamanho_elite = params.get("tamanho_elite", 2)
 
         # Atributos que serão preenchidos durante a execução
         self.populacao = []
@@ -237,8 +238,23 @@ class OtimizadorAG(Otimizador):
                 idx_melhor = fitness_populacao.index(melhor_fitness_geracao)
                 self.melhor_solucao_global = self.populacao[idx_melhor].copy()
 
-            # 3. Seleção e Reprodução
+            # 3. Criação da nova população com elitismo
             nova_populacao = []
+
+            if self.tamanho_elite > 0:
+                # Combina indivíduo com seu fitness para poder ordenar
+                populacao_com_fitness = list(zip(self.populacao, fitness_populacao))
+                
+                # Ordena do maior fitness para o menor (reverse=True)
+                populacao_com_fitness.sort(key=lambda x: x[1], reverse=True)
+                
+                # Seleciona os N melhores cromossomos
+                elites = [ind.copy() for ind, fit in populacao_com_fitness[:self.tamanho_elite]]
+                
+                # Adiciona diretamente à nova população
+                nova_populacao.extend(elites)
+
+            # 3. Seleção e Reprodução
             while len(nova_populacao) < self.n_populacao:
                 pai1 = self._selecao_por_torneio(fitness_populacao)
                 pai2 = self._selecao_por_torneio(fitness_populacao)

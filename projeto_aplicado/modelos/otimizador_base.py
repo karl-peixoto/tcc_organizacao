@@ -90,7 +90,7 @@ class Otimizador:
                 valor_preenchimento = self.pref_demais
         
             # Preenche todos os NaNs naquela coluna com o valor definido
-            df_prefs_completo[disciplina_id].fillna(valor_preenchimento, inplace=True)
+            df_prefs_completo[disciplina_id] = df_prefs_completo[disciplina_id].fillna(valor_preenchimento)
         
 
         # Garante que todos os valores sejam inteiros
