@@ -1,6 +1,8 @@
 # Ignorar pastas privadas
 artigos_referencias/
 propostas_apresentacoes/
+dados/docentes.csv
+dados/RespostaOfertaProfessores.csv
 
 # Ignorar arquivos temporários do sistema
 *.tmp
