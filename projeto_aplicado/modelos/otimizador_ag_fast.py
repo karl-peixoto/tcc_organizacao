@@ -154,18 +154,111 @@ class OtimizadorAGFast(Otimizador):
         return f1, f2
 
     def _mutacao(self, crom: np.ndarray) -> np.ndarray:
-        # Mutação gene a gene com reconstrução local de restrições
+        """Mutação adaptativa versão vetorizada (Shift vs Swap).
+
+        Para cada gene sorteado:
+          - Escolhe professor alvo ponderado pela preferência da disciplina.
+          - Tenta Shift (capacidade + sem conflito).
+          - Senão tenta Swap com disciplina de menor preferência do alvo movendo-a ao professor de origem.
+          - Fallback: escolha válida via método original.
+        """
         mut = crom.copy()
+
+        # Construir cargas e lista de disciplinas por professor
+        cargas = np.zeros(self.n_prof, dtype=np.int16)
+        disciplinas_por_prof = [[] for _ in range(self.n_prof)]
+        for d_idx, p_idx in enumerate(mut):
+            cargas[p_idx] += self.ch_disciplina[d_idx]
+            disciplinas_por_prof[p_idx].append(d_idx)
+
+        def sem_conflito_idx(prof_idx: int, disc_idx_nova: int, disc_indices_atual: list) -> bool:
+            for d in disc_indices_atual:
+                if d == disc_idx_nova:
+                    continue
+                if self.conflicts[d, disc_idx_nova] == 1:
+                    return False
+            return True
+
         for g in range(self.n_disc):
-            if random.random() < self.taxa_mutacao:
-                # Reconstrói estado parcial sem este gene para escolher professor válido
-                sol_parcial = mut.copy()
-                sol_parcial[g] = -1
-                cargas = np.zeros(self.n_prof, dtype=np.int16)
-                for d_idx, p_idx in enumerate(sol_parcial):
-                    if p_idx >= 0:
-                        cargas[p_idx] += self.ch_disciplina[d_idx]
-                novo_prof = self._escolher_professor_valido(g, sol_parcial, cargas)
+            if random.random() >= self.taxa_mutacao:
+                continue
+            disc_idx = g
+            prof_origem_idx = mut[g]
+
+            # Sorteio ponderado do alvo
+            prefs = self.pref_matrix[:, disc_idx]
+            soma = prefs.sum()
+            if soma <= 0:
+                prof_alvo_idx = random.randrange(self.n_prof)
+            else:
+                probs = prefs / soma
+                prof_alvo_idx = int(np.random.choice(np.arange(self.n_prof), p=probs))
+
+            if prof_alvo_idx == prof_origem_idx:
+                continue
+
+            # Tentativa Shift
+            capacidade_ok = (cargas[prof_alvo_idx] + self.ch_disciplina[disc_idx]) <= self.ch_max[prof_alvo_idx]
+            conflitos_ok = sem_conflito_idx(prof_alvo_idx, disc_idx, disciplinas_por_prof[prof_alvo_idx])
+            if capacidade_ok and conflitos_ok:
+                # Shift
+                disciplinas_por_prof[prof_origem_idx].remove(disc_idx)
+                cargas[prof_origem_idx] -= self.ch_disciplina[disc_idx]
+                disciplinas_por_prof[prof_alvo_idx].append(disc_idx)
+                cargas[prof_alvo_idx] += self.ch_disciplina[disc_idx]
+                mut[g] = prof_alvo_idx
+                continue
+
+            # Tentativa Swap
+            swap_list = disciplinas_por_prof[prof_alvo_idx]
+            if swap_list:
+                # Ordena por menor preferência do alvo
+                swap_candidates = sorted(swap_list, key=lambda d: self.pref_matrix[prof_alvo_idx, d])
+                swap_done = False
+                for d_swap in swap_candidates:
+                    if d_swap == disc_idx:
+                        continue
+                    # Capacidade origem após troca
+                    carga_origem_pos = cargas[prof_origem_idx] - self.ch_disciplina[disc_idx] + self.ch_disciplina[d_swap]
+                    if carga_origem_pos > self.ch_max[prof_origem_idx]:
+                        continue
+                    # Conflitos origem (removendo disc_idx antes de adicionar d_swap)
+                    origem_rest = [d for d in disciplinas_por_prof[prof_origem_idx] if d != disc_idx]
+                    if not sem_conflito_idx(prof_origem_idx, d_swap, origem_rest):
+                        continue
+                    # Conflitos alvo (removendo d_swap antes de adicionar disc_idx)
+                    alvo_rest = [d for d in swap_list if d != d_swap]
+                    if not sem_conflito_idx(prof_alvo_idx, disc_idx, alvo_rest):
+                        continue
+                    # Executa Swap
+                    mut[g] = prof_alvo_idx
+                    swap_pos = d_swap
+                    mut[swap_pos] = prof_origem_idx
+                    disciplinas_por_prof[prof_origem_idx].remove(disc_idx)
+                    disciplinas_por_prof[prof_alvo_idx].remove(d_swap)
+                    disciplinas_por_prof[prof_origem_idx].append(d_swap)
+                    disciplinas_por_prof[prof_alvo_idx].append(disc_idx)
+                    cargas[prof_origem_idx] = cargas[prof_origem_idx] - self.ch_disciplina[disc_idx] + self.ch_disciplina[d_swap]
+                    cargas[prof_alvo_idx] = cargas[prof_alvo_idx] - self.ch_disciplina[d_swap] + self.ch_disciplina[disc_idx]
+                    swap_done = True
+                    break
+                if swap_done:
+                    continue
+
+            # Fallback: reconstruir restrições e usar método original
+            sol_parcial = mut.copy()
+            sol_parcial[g] = -1
+            cargas_fallback = np.zeros(self.n_prof, dtype=np.int16)
+            for d_idx2, p_idx2 in enumerate(sol_parcial):
+                if p_idx2 >= 0:
+                    cargas_fallback[p_idx2] += self.ch_disciplina[d_idx2]
+            novo_prof = self._escolher_professor_valido(disc_idx, sol_parcial, cargas_fallback)
+            if novo_prof != prof_origem_idx:
+                # Atualiza estruturas
+                disciplinas_por_prof[prof_origem_idx].remove(disc_idx)
+                cargas[prof_origem_idx] -= self.ch_disciplina[disc_idx]
+                disciplinas_por_prof[novo_prof].append(disc_idx)
+                cargas[novo_prof] += self.ch_disciplina[disc_idx]
                 mut[g] = novo_prof
         return mut
 
