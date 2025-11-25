@@ -325,7 +325,57 @@ def resultado():
         except Exception:
             resumo['fixadas'] = 0
 
-    return render_template('resultado.html', registros=registros, analise=analise, resumo=resumo)
+    # --- Construção dos mapas para interatividade (hover) ---
+    # Mapa professor -> lista de disciplinas alocadas
+    dados = carregar_dados()
+    df_disc = dados['disciplinas']
+    # Detectar coluna de nome de disciplina
+    col_nome_disc = 'nome_disciplina' if 'nome_disciplina' in df_disc.columns else ('disciplina' if 'disciplina' in df_disc.columns else None)
+    # Cria lista de nomes de disciplina alocadas por professor
+    if col_nome_disc:
+        mapa_prof = df_view.groupby('id_docente')[col_nome_disc].apply(list).to_dict()
+    else:
+        mapa_prof = df_view.groupby('id_docente')['id_disciplina'].apply(list).to_dict()
+
+    # DataFrames auxiliares
+    df_pref = dados['preferencias']
+    df_prof = dados['professores']
+    col_nome_prof = 'nome_docente' if 'nome_docente' in df_prof.columns else ('docente' if 'docente' in df_prof.columns else None)
+
+    # --- Mapa disciplina -> professores com preferência 3 ---
+    df_pref3 = df_pref[df_pref['preferencia'] == 3].copy()
+    if col_nome_prof:
+        df_pref3_prof = df_pref3.merge(df_prof[['id_docente', col_nome_prof]], on='id_docente', how='left')
+        mapa_disc = df_pref3_prof.groupby('id_disciplina')[col_nome_prof].apply(lambda x: [str(n).strip() for n in x if pd.notnull(n)]).to_dict()
+    else:
+        mapa_disc = df_pref3.groupby('id_disciplina')['id_docente'].apply(list).to_dict()
+    for d_id in df_disc['id_disciplina'].tolist():  # garante chaves vazias
+        mapa_disc.setdefault(d_id, [])
+
+    # --- Mapa professor -> disciplinas com preferência 3 (deduplicadas por nome) ---
+    if col_nome_disc:
+        df_pref3_disc = df_pref3.merge(df_disc[['id_disciplina', col_nome_disc]], on='id_disciplina', how='left')
+        # Remove duplicatas de nomes preservando ordem (caso haja múltiplos códigos para o mesmo nome)
+        mapa_prof_pref3 = df_pref3_disc.groupby('id_docente')[col_nome_disc].apply(
+            lambda s: list(dict.fromkeys([str(n).strip() for n in s if pd.notnull(n)]))
+        ).to_dict()
+    else:
+        # Sem coluna de nome, usa id_disciplina e dedup também
+        mapa_prof_pref3 = df_pref3.groupby('id_docente')['id_disciplina'].apply(
+            lambda s: list(dict.fromkeys([str(n).strip() for n in s if pd.notnull(n)]))
+        ).to_dict()
+    for pid in df_prof['id_docente'].tolist():  # garante chaves vazias
+        mapa_prof_pref3.setdefault(pid, [])
+
+    return render_template(
+        'resultado.html',
+        registros=registros,
+        analise=analise,
+        resumo=resumo,
+        prof_alloc_map=mapa_prof,
+        disc_pref3_map=mapa_disc,
+        prof_pref3_map=mapa_prof_pref3
+    )
 
 
 @app.route('/resultado/export')
