@@ -115,8 +115,11 @@ class Otimizador:
         todas_as_disciplinas = df_disciplinas['id_disciplina'].tolist()
         
         
-        ch_max = df_professores.set_index('id_docente')['carga_maxima'].to_dict()
-        ch_disciplinas = df_disciplinas.set_index('id_disciplina')['carga_horaria'].to_dict()
+        # NOVO MODELO DE CAPACIDADE: agora usamos número de disciplinas em vez de carga horária.
+        # ch_max passa a representar o limite de disciplinas por professor (coluna max_disciplinas).
+        # ch_disciplinas passa a ser custo unitário (1 disciplina = 1 unidade de capacidade).
+        ch_max = df_professores.set_index('id_docente')['max_disciplinas'].to_dict()
+        ch_disciplinas = {d: 1 for d in df_disciplinas['id_disciplina']}
         df_conflitos.set_index(df_conflitos.columns[0], inplace=True)
         matriz_conflitos = df_conflitos
 
@@ -131,7 +134,7 @@ class Otimizador:
             # Validação
             carga_futura = cargas_atuais[prof] + ch_disciplinas[disc]
             if carga_futura > ch_max[prof]:
-                raise ValueError(f"Erro: Alocações fixas para {prof} excedem sua carga máxima!")
+                raise ValueError(f"Erro: Alocações fixas para {prof} excedem seu limite de disciplinas!")
             
             cargas_atuais[prof] = carga_futura
             disciplinas_fixadas.add(disc)
@@ -145,7 +148,7 @@ class Otimizador:
         # --- Etapa 2: Filtrar Professores e Disciplinas para criar o problema reduzido ---
         disciplinas_a_alocar = [d for d in todas_as_disciplinas if d not in disciplinas_fixadas]
     
-        # Professores que ainda têm carga horária disponível
+        # Professores que ainda têm capacidade (número de disciplinas) disponível
         professores_a_considerar = [
             p for p, ch in cargas_atuais.items() 
             if ch < ch_max[p]

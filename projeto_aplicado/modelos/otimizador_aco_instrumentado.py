@@ -51,7 +51,7 @@ class OtimizadorACOInstrumentado(OtimizadorACO):
         }
 
     def _resolver_nucleo(self, callback_iteracao=None):  # type: ignore[override]
-        # Inicializa estruturas e snapshot inicial (geração 0)
+        # Inicializa estruturas e snapshot inicial (geração 0) usando capacidade por número de disciplinas
         self._inicializar_parametros()
         self._snapshot_feromonio(geracao=0)
 

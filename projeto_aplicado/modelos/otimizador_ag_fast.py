@@ -44,9 +44,9 @@ class OtimizadorAGFast(Otimizador):
                 di = self.disc_index[d]
                 self.pref_matrix[pi, di] = pref_dict[d]
 
-        # Carga horária de cada disciplina (array alinhado ao índice da disciplina)
+        # Cada disciplina tem custo unitário: 1 (limite por professor medido em número de disciplinas)
         self.ch_disciplina = np.array([self.dados_preparados["ch_disciplinas"][d] for d in self.disc_ids], dtype=np.int16)
-        # Carga máxima restante de cada professor
+        # Limite de disciplinas por professor
         self.ch_max = np.array([self.dados_preparados["ch_max"][p] for p in self.prof_ids], dtype=np.int16)
 
         # Matriz de conflitos (disciplinas x disciplinas) em numpy para acessos rápidos

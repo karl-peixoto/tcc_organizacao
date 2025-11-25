@@ -35,10 +35,10 @@ class OtimizadorPLI(Otimizador):
                 termos_objetivo.append((pref - penal) * x[p][d])
         modelo += pulp.lpSum(termos_objetivo)
 
-        # Restrições de carga e conflitos
+        # Restrições de quantidade de disciplinas e conflitos
         num_disciplinas = len(lista_disciplinas)
         for p in dados["professores"]:
-            modelo += pulp.lpSum(dados["ch_disciplinas"][d] * x[p][d] for d in dados["disciplinas"]) <= dados["ch_max"][p], f"Carga_Max_{p}"
+            modelo += pulp.lpSum(dados["ch_disciplinas"][d] * x[p][d] for d in dados["disciplinas"]) <= dados["ch_max"][p], f"Limite_Disciplinas_{p}"
             for i in range(num_disciplinas):
                 for j in range(i + 1, num_disciplinas):
                     d1 = lista_disciplinas[i]

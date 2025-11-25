@@ -54,11 +54,11 @@ class OtimizadorAG(Otimizador):
         Escolhe um professor para uma disciplina, respeitando as restrições e
         usando as preferências como peso para um sorteio.
         """
-        ch_max = self.dados_preparados["ch_max"]
-        ch_disciplinas = self.dados_preparados["ch_disciplinas"]
+        ch_max = self.dados_preparados["ch_max"]  # limite de número de disciplinas
+        ch_disciplinas = self.dados_preparados["ch_disciplinas"]  # custo unitário (1 por disciplina)
         matriz_conflitos = self.dados_preparados["matriz_conflitos"]
         
-        # 1. Filtra por carga horária
+        # 1. Filtra por capacidade (número de disciplinas)
         candidatos = [p for p in self.dados_preparados["professores"] 
                       if (cargas_atuais.get(p, 0) + ch_disciplinas[disciplina_id]) <= ch_max[p]]
         
@@ -115,13 +115,13 @@ class OtimizadorAG(Otimizador):
     def _calcular_fitness(self, cromossomo: list) -> float:
         """
         Calcula a pontuação de fitness de um único cromossomo.
-        A pontuação é a soma das preferências, com uma alta penalidade
-        se a restrição de carga horária for violada.
+        A pontuação é a soma das preferências, com penalidade alta
+        se o limite de disciplinas do professor for excedido ou houver conflitos.
         """
         score_preferencias = 0
         cargas_atuais = {prof: 0 for prof in self.dados_preparados["professores"]}
         
-        # Calcula score e carga horária
+        # Calcula score e número de disciplinas alocadas (cada disciplina = 1 unidade)
         for idx_disciplina, id_professor in enumerate(cromossomo):
             id_disciplina = self.dados_preparados["disciplinas"][idx_disciplina]
             score_preferencias += self.dados_preparados["preferencias"][id_professor][id_disciplina]
@@ -130,9 +130,9 @@ class OtimizadorAG(Otimizador):
         # Calcula a penalidade
         excesso_total = 0
         for id_professor, carga_atribuida in cargas_atuais.items():
-            carga_maxima = self.dados_preparados["ch_max"][id_professor]
-            if carga_atribuida > carga_maxima:
-                excesso_total += (carga_atribuida - carga_maxima)
+            limite = self.dados_preparados["ch_max"][id_professor]
+            if carga_atribuida > limite:
+                excesso_total += (carga_atribuida - limite)
 
         # Penaliza conflitos de horario
         matriz_conflitos = self.dados_preparados["matriz_conflitos"]

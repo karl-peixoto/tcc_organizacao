@@ -37,6 +37,7 @@ class OtimizadorACOFast(Otimizador):
                 di = self.disc_index[d]
                 self.heuristica[pi, di] = prefs[d] + 0.1
 
+        # Cada disciplina agora custa 1 unidade de capacidade (limite por professor).
         self.ch_disciplina = np.array([self.dados_preparados["ch_disciplinas"][d] for d in self.disc_ids], dtype=np.int16)
         self.ch_max = np.array([self.dados_preparados["ch_max"][p] for p in self.prof_ids], dtype=np.int16)
         self.conflicts = self.dados_preparados["matriz_conflitos"].values.astype(np.int8)

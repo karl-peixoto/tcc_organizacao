@@ -79,7 +79,7 @@ class OtimizadorACO(Otimizador):
         matriz_conflitos = self.dados_preparados["matriz_conflitos"]
         
         for disciplina in disciplinas_a_alocar:
-            # 1. Encontrar professores candidatos (que não excedem a carga horária)
+            # 1. Encontrar professores candidatos (que não excedem o limite de disciplinas)
             candidatos = [p for p in self.dados_preparados["professores"] 
                           if (cargas_atuais[p] + ch_disciplinas[disciplina]) <= ch_max[p]]
             

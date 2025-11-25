@@ -33,7 +33,7 @@ class OtimizadorPLIFast(Otimizador):
                 termos.append((pref - penal) * x[p][d])
         modelo += pulp.lpSum(termos)
 
-        # Restrição de carga por professor
+        # Restrição de quantidade de disciplinas por professor (cada disciplina = 1)
         ch_disc = dados["ch_disciplinas"]
         for p in profs:
             modelo += pulp.lpSum(ch_disc[d] * x[p][d] for d in discs) <= dados["ch_max"][p]
