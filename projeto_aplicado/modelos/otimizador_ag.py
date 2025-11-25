@@ -181,27 +181,101 @@ class OtimizadorAG(Otimizador):
         return filho1, filho2
 
     def _mutacao(self, cromossomo: list) -> list:
-        """Aplica uma mutação 'inteligente' em um gene do cromossomo."""
-        cromossomo_mutado = cromossomo[:]
-        for i in range(len(cromossomo_mutado)):
-            if random.random() < self.taxa_mutacao:
-                disciplina_a_mutar = self.disciplinas_do_problema[i]
-                
-                # Recria o estado parcial do cromossomo (sem a disciplina a ser mutada)
-                solucao_parcial_dict = {}
-                cargas_atuais = {prof: 0 for prof in self.dados_preparados["professores"]}
-                for j in range(len(cromossomo_mutado)):
-                    if i == j: continue # Pula o gene que será mutado
-                    
-                    prof_atual = cromossomo_mutado[j]
-                    disc_atual = self.disciplinas_do_problema[j]
-                    solucao_parcial_dict[prof_atual] = disc_atual
-                    cargas_atuais[prof_atual] += self.dados_preparados["ch_disciplinas"][disc_atual]
+        """Mutação adaptativa (Shift vs Swap) por gene.
 
-                # Escolhe um novo professor válido para a disciplina
-                novo_professor = self._escolher_professor_valido(disciplina_a_mutar, solucao_parcial_dict, cargas_atuais)
-                cromossomo_mutado[i] = novo_professor
-        return cromossomo_mutado
+        Para cada gene sorteado para mutação:
+          1. Seleciona um professor alvo usando sorteio ponderado pela preferência da disciplina.
+          2. Se o alvo tem capacidade e não gera conflito -> Shift (reatribui a disciplina ao alvo).
+          3. Caso contrário tenta Swap: escolhe uma disciplina já atribuída ao alvo (de menor preferência do alvo)
+             que possa ser movida para o professor de origem (sem violar capacidade e sem gerar conflitos).
+          4. Se não houver Shift nem Swap possível, recorre ao método anterior de escolha válida.
+        """
+        crom = cromossomo[:]
+        professores = self.dados_preparados["professores"]
+        ch_max = self.dados_preparados["ch_max"]
+        ch_disc = self.dados_preparados["ch_disciplinas"]
+        matriz_conflitos = self.dados_preparados["matriz_conflitos"]
+        preferencias_map = self.dados_preparados["preferencias"]
+
+        # Pré-computa alocações e cargas atuais
+        alocacoes_por_prof = {p: [] for p in professores}
+        cargas = {p: 0 for p in professores}
+        for idx, prof in enumerate(crom):
+            disc = self.disciplinas_do_problema[idx]
+            alocacoes_por_prof[prof].append(disc)
+            cargas[prof] += ch_disc[disc]
+
+        def sem_conflito(prof: str, nova_disciplina: str, disciplinas_atuais: list) -> bool:
+            """Verifica se atribuir nova_disciplina a prof gera conflito com disciplinas_atuais."""
+            for d in disciplinas_atuais:
+                if d == nova_disciplina:
+                    continue
+                if matriz_conflitos.loc[d, nova_disciplina] == 1:
+                    return False
+            return True
+
+        for i in range(len(crom)):
+            if random.random() >= self.taxa_mutacao:
+                continue
+            disc_mut = self.disciplinas_do_problema[i]
+            prof_origem = crom[i]
+
+            # 1. Sorteio ponderado de professor alvo
+            prefs = [preferencias_map[p][disc_mut] for p in professores]
+            soma = sum(prefs)
+            if soma == 0:
+                prof_alvo = random.choice(professores)
+            else:
+                prof_alvo = random.choices(professores, weights=prefs, k=1)[0]
+
+            if prof_alvo == prof_origem:
+                continue  # nada a fazer
+
+            # 2. Tentativa de Shift
+            capacidade_ok = (cargas[prof_alvo] + ch_disc[disc_mut]) <= ch_max[prof_alvo]
+            conflitos_ok = sem_conflito(prof_alvo, disc_mut, alocacoes_por_prof[prof_alvo])
+            if capacidade_ok and conflitos_ok:
+                # Executa Shift
+                alocacoes_por_prof[prof_origem].remove(disc_mut)
+                cargas[prof_origem] -= ch_disc[disc_mut]
+                alocacoes_por_prof[prof_alvo].append(disc_mut)
+                cargas[prof_alvo] += ch_disc[disc_mut]
+                crom[i] = prof_alvo
+                continue
+
+            # 3. Tentativa de Swap
+            disciplinas_alvo = alocacoes_por_prof[prof_alvo]
+            if disciplinas_alvo:
+                # Ordena por menor preferência do alvo (candidatas a liberar)
+                disciplinas_ordenadas = sorted(disciplinas_alvo, key=lambda d: preferencias_map[prof_alvo][d])
+                swap_realizado = False
+                for disc_swap in disciplinas_ordenadas:
+                    if disc_swap == disc_mut:
+                        continue
+                    
+                    # Conflitos no prof_origem com disc_swap
+                    disciplinas_origem_restantes = [d for d in alocacoes_por_prof[prof_origem] if d != disc_mut]
+                    if not sem_conflito(prof_origem, disc_swap, disciplinas_origem_restantes):
+                        continue
+                    # Conflitos no prof_alvo após receber disc_mut e remover disc_swap
+                    disciplinas_alvo_restantes = [d for d in disciplinas_alvo if d != disc_swap]
+                    if not sem_conflito(prof_alvo, disc_mut, disciplinas_alvo_restantes):
+                        continue
+                    # Executa Swap
+                    idx_swap = self.map_disc_idx[disc_swap]
+                    crom[i] = prof_alvo
+                    crom[idx_swap] = prof_origem
+                    # Atualiza estruturas
+                    alocacoes_por_prof[prof_origem].remove(disc_mut)
+                    alocacoes_por_prof[prof_alvo].remove(disc_swap)
+                    alocacoes_por_prof[prof_origem].append(disc_swap)
+                    alocacoes_por_prof[prof_alvo].append(disc_mut)
+                    swap_realizado = True
+                    break
+                if swap_realizado:
+                    continue
+
+        return crom
 
     def _formatar_solucao_final(self):
         """Converte a melhor solução encontrada em DataFrames para análise."""
