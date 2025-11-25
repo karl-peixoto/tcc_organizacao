@@ -1,3 +1,8 @@
+## Link para visualização do projeto no Overleaf
+
+[Link Visualização Overleaf](https://www.overleaf.com/read/yypgdjwsvdff#3ee062)
+
+
 <h1 align="center">Alocador de Docentes – Versão V3</h1>
 
 Versão simplificada do projeto de TCC (Departamento de Estatística / UnB) para gerar uma alocação única de docentes em disciplinas considerando preferências, cargas e conflitos. Foco: uso direto, rápido e transparente.
