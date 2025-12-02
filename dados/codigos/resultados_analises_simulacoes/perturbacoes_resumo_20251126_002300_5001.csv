@@ -1,0 +1,5 @@
+algoritmo,tempo_execucao,escore_total,pref_3,pref_2,pref_1,pref_0,violacoes_capacidade_total_excesso,professores_com_violacao,conflitos_totais,repeticao,seed,n_reshuffled,n_resampled,slack_increment_total
+PLI,3.2479865000059363,114.0,36.0,2.0,2.0,7.0,6.0,5.0,3.0,1,5001,65,65,15
+AG,16.32538249999925,116.0,36.0,3.0,2.0,6.0,7.0,6.0,5.0,1,5001,65,65,15
+ACO,634.4196677,124.0,39.0,3.0,1.0,4.0,7.0,6.0,4.0,1,5001,65,65,15
+,,,,,,,,,,1,5001,65,65,15

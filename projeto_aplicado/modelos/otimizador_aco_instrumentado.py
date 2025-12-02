@@ -1,140 +1,111 @@
-import pandas as pd
+import os
 import numpy as np
+import pandas as pd
+import time
 from .otimizador_aco import OtimizadorACO
 
 class OtimizadorACOInstrumentado(OtimizadorACO):
-    """Versão instrumentada do ACO que registra snapshots completos da matriz de
-    feromônio em todas as gerações e dados detalhados da construção das soluções.
-
-    Saídas adicionais em resolver():
-      - pheromone_snapshots: lista de DataFrames (index=id_docente, columns=id_disciplina)
-        incluindo snapshot inicial (geração 0) e após cada geração (tamanho n_geracoes+1)
-      - pheromone_long_df: DataFrame em formato longo com colunas
-          ['geracao','id_docente','id_disciplina','feromonio'] para fácil uso em Plotly/Matplotlib.
-      - historico_formigas: lista de listas; cada posição i contém a lista de dicts
-          das formigas da geração i+1: {'geracao', 'indice_formiga', 'qualidade', 'solucao'}.
-      - eventos_melhor_global: lista de dicts com evolução do melhor global.
-
-    Observação: Mantém compatibilidade com chaves da versão base (alocacao_final, valor_objetivo, metricas_iteracao).
     """
-
+    Versão do ACO que coleta snapshots da matriz de feromônios por geração.
+    - Config:
+        ACO_PARAMS.capturar_feromonio: bool (default True)
+        ACO_PARAMS.freq_snapshot: int (default 1) -> a cada N gerações
+        ACO_PARAMS.salvar_dir: str (default '../graficos' relat.)
+        ACO_PARAMS.salvar_prefixo: str (default 'aco_feromonio')
+        ACO_PARAMS.salvar_final_npy: bool (default True)
+        ACO_PARAMS.salvar_stats_csv: bool (default True)
+        ACO_PARAMS.salvar_amostra_csv: bool (default False) -> salva pequeno subset
+        ACO_PARAMS.amostra_max: int (default 2000) -> nº máx. de células na amostra CSV
+    """
     def __init__(self, config: dict):
         super().__init__(config)
-        self.pheromone_snapshots = []          # Lista de DataFrames
-        self._pheromone_long_rows = []         # Linhas acumuladas para o DataFrame longo
-        self.historico_formigas = []           # Lista por geração com dados das formigas
-        self.eventos_melhor_global = []        # Eventos de atualização do melhor global
+        p = self.config.get("ACO_PARAMS", {})
+        self.capturar_feromonio = p.get("capturar_feromonio", True)
+        self.freq_snapshot = int(p.get("freq_snapshot", 1))
+        self.salvar_dir = p.get("salvar_dir", os.path.join("..", "graficos"))
+        self.salvar_prefixo = p.get("salvar_prefixo", "aco_feromonio")
+        self.salvar_final_npy = bool(p.get("salvar_final_npy", True))
+        self.salvar_stats_csv = bool(p.get("salvar_stats_csv", True))
+        self.salvar_amostra_csv = bool(p.get("salvar_amostra_csv", False))
+        self.amostra_max = int(p.get("amostra_max", 2000))
+
+        # Histórico leve (stats por geração) e, opcionalmente, amostras
+        self.feromonio_stats = []        # [{geracao, min, max, mean, std}, ...]
+        self.feromonio_amostras = []     # [(geracao, np.ndarray_amostra), ...]
+        self._start_time = None
 
     def _snapshot_feromonio(self, geracao: int):
-        """Captura snapshot completo da matriz de feromônio e armazena também em formato longo."""
-        snap = self.matriz_feromonio.copy()
-        self.pheromone_snapshots.append(snap)
-        # Formato longo
-        long_df = snap.stack().rename('feromonio').reset_index()
-        long_df.columns = ['id_docente', 'id_disciplina', 'feromonio']
-        long_df.insert(0, 'geracao', geracao)
-        self._pheromone_long_rows.append(long_df)
+        if not self.capturar_feromonio or self.arr_feromonio is None:
+            return
 
-    def _registrar_evento_melhor_global(self, geracao: int, qualidade: int):
-        self.eventos_melhor_global.append({
-            'geracao': geracao,
-            'melhor_global': qualidade
-        })
-
-    def _construir_solucao_formiga_instrumentada(self) -> dict:
-        """Constrói solução de uma formiga retornando dict detalhado.
-        Retorna dict com chaves: 'solucao', 'qualidade'."""
-        solucao, qualidade = self._construir_solucao_formiga()
-        return {
-            'solucao': solucao,
-            'qualidade': qualidade
+        arr = self.arr_feromonio
+        # Coleta estatísticas globais
+        stats = {
+            "geracao": geracao + 1,
+            "min": float(arr.min()),
+            "max": float(arr.max()),
+            "mean": float(arr.mean()),
+            "std": float(arr.std()),
+            "num_profs": int(self.num_profs),
+            "num_discs": int(self.num_discs),
+            "tempo_decorrido_s": time.time() - self._start_time if self._start_time else None
         }
+        self.feromonio_stats.append(stats)
 
-    def _resolver_nucleo(self, callback_iteracao=None):  # type: ignore[override]
-        # Inicializa estruturas e snapshot inicial (geração 0) usando capacidade por número de disciplinas
-        self._inicializar_parametros()
-        self._snapshot_feromonio(geracao=0)
+        # Amostra pequena para inspecionar evolução local sem arquivos gigantes
+        if self.salvar_amostra_csv:
+            n = arr.size
+            k = min(self.amostra_max, n)
+            # amostra aleatória de k células (uniforme)
+            flat = arr.ravel()
+            idxs = np.random.choice(n, size=k, replace=False)
+            amostra = flat[idxs]
+            self.feromonio_amostras.append((geracao + 1, amostra))
 
-        for geracao in range(1, self.n_geracoes + 1):
-            dados_formigas = []
-            solucoes_validas = []  # (solucao, qualidade) para atualização de feromônio
+    def _atualizar_feromonio_numpy(self, solucoes_geracao):
+        # usa a versão do pai para evaporar e depositar
+        super()._atualizar_feromonio_numpy(solucoes_geracao)
 
-            for idx_formiga in range(self.n_formigas):
-                info = self._construir_solucao_formiga_instrumentada()
-                dados_formigas.append({
-                    'geracao': geracao,
-                    'indice_formiga': idx_formiga,
-                    'qualidade': info['qualidade'],
-                    'solucao': info['solucao']
-                })
-                solucao = info['solucao']
-                qualidade = info['qualidade']
-                if solucao:
-                    solucoes_validas.append((solucao, qualidade))
-                    if qualidade > self.melhor_qualidade_global:
-                        self.melhor_qualidade_global = qualidade
-                        self.melhor_solucao_global = solucao
-                        self._registrar_evento_melhor_global(geracao, qualidade)
+        # snapshot conforme frequência
+        if self.capturar_feromonio and len(self.metricas_iteracao) % self.freq_snapshot == 0:
+            self._snapshot_feromonio(geracao=len(self.metricas_iteracao) - 1)
 
-            self.historico_formigas.append(dados_formigas)
-            self._atualizar_feromonio(solucoes_validas)
+    def _resolver_nucleo(self, callback_iteracao=None):
+        # inicia cronômetro
+        self._start_time = time.time()
 
-            # Métricas de geração
-            if solucoes_validas:
-                qualidades = [q for _, q in solucoes_validas]
-                melhor_geracao = max(qualidades)
-                media_geracao = float(np.mean(qualidades))
-                pior_geracao = min(qualidades)
-                std_geracao = float(np.std(qualidades))
-                diversidade = len({tuple(sol) for sol, _ in solucoes_validas})
-            else:
-                melhor_geracao = None
-                media_geracao = None
-                pior_geracao = None
-                std_geracao = None
-                diversidade = 0
+        resultado = super()._resolver_nucleo(callback_iteracao=callback_iteracao)
 
-            metrica = {
-                'geracao': geracao,
-                'melhor_geracao': melhor_geracao,
-                'melhor_global': self.melhor_qualidade_global,
-                'media_geracao': media_geracao,
-                'pior_geracao': pior_geracao,
-                'std_geracao': std_geracao,
-                'diversidade_solucoes': diversidade
-            }
-            self.metricas_iteracao.append(metrica)
-            if callback_iteracao is not None:
-                try:
-                    callback_iteracao(metrica)
-                except Exception as e:
-                    print(f"Callback geração {geracao} falhou: {e}")
+        # Salvar artefatos (feromônio final e stats)
+        try:
+            os.makedirs(self.salvar_dir, exist_ok=True)
+            base = os.path.join(self.salvar_dir, self.salvar_prefixo)
 
-            # Snapshot pós atualização de feromônio desta geração
-            self._snapshot_feromonio(geracao=geracao)
+            # 1) Feromônio final (.npy) para heatmap futuro
+            if self.salvar_final_npy and self.arr_feromonio is not None:
+                np.save(f"{base}_final.npy", self.arr_feromonio)
 
-        resultado_base = self._formatar_solucao_final()
-        if resultado_base is None:
-            return None
-        resultado_base['metricas_iteracao'] = self.metricas_iteracao
-        resultado_base['pheromone_snapshots'] = self.pheromone_snapshots
-        resultado_base['pheromone_long_df'] = pd.concat(self._pheromone_long_rows, ignore_index=True)
-        resultado_base['historico_formigas'] = self.historico_formigas
-        resultado_base['eventos_melhor_global'] = self.eventos_melhor_global
-        return resultado_base
+            # 2) Estatísticas por geração (.csv)
+            if self.salvar_stats_csv and self.feromonio_stats:
+                pd.DataFrame(self.feromonio_stats).to_csv(f"{base}_stats.csv", index=False)
 
-    # Métodos utilitários para acesso externo
-    def get_pheromone_long(self) -> pd.DataFrame:
-        return pd.concat(self._pheromone_long_rows, ignore_index=True)
+            # 3) Amostras por geração (.csv longo porém leve)
+            if self.salvar_amostra_csv and self.feromonio_amostras:
+                # explode amostras: cada linha = uma célula amostrada (geracao, valor)
+                rows = []
+                for gen, arr_sample in self.feromonio_amostras:
+                    rows.extend([{"geracao": gen, "valor": float(v)} for v in arr_sample])
+                pd.DataFrame(rows).to_csv(f"{base}_amostras.csv", index=False)
+        except Exception as e:
+            # não falha a otimização se I/O falhar
+            pass
 
-    def get_pheromone_generation(self, geracao: int) -> pd.DataFrame:
-        """Retorna snapshot da geração solicitada (0 = inicial)."""
-        if geracao < 0 or geracao >= len(self.pheromone_snapshots):
-            raise IndexError('Geração fora do intervalo de snapshots.')
-        return self.pheromone_snapshots[geracao].copy()
-
-    def get_formigas_geracao(self, geracao: int) -> list:
-        """Retorna lista de dicts com dados das formigas da geração (1-index)."""
-        if geracao < 1 or geracao > len(self.historico_formigas):
-            raise IndexError('Geração fora do intervalo de histórico de formigas.')
-        return self.historico_formigas[geracao - 1]
+        # inclui no resultado para inspeção programática
+        if resultado is not None:
+            resultado["feromonio_stats"] = self.feromonio_stats
+            resultado["feromonio_final_shape"] = (int(self.num_profs), int(self.num_discs))
+            resultado["feromonio_final_path"] = (
+                os.path.join(self.salvar_dir, f"{self.salvar_prefixo}_final.npy")
+                if self.salvar_final_npy else None
+            )
+        return resultado

@@ -1,6 +1,8 @@
 from .otimizador_base import Otimizador
 import pandas as pd
 import pulp
+import io
+from contextlib import redirect_stdout
 
 class OtimizadorPLI(Otimizador):
     """
@@ -11,7 +13,7 @@ class OtimizadorPLI(Otimizador):
         super().__init__(config)
         
         self.modelo_pli = None
-        print("OtimizadorPLI pronto.")
+        #print("OtimizadorPLI pronto.")
 
     def _construir_modelo(self):
         """Constrói o modelo PuLP com objetivo direto: preferencia - penalidade_zero."""
@@ -50,12 +52,12 @@ class OtimizadorPLI(Otimizador):
             modelo += pulp.lpSum(x[p][d] for p in dados["professores"]) == 1, f"Cobertura_{d}"
 
         self.modelo_pli = modelo
-        print("Modelo PLI construído com sucesso.")
+        #("Modelo PLI construído com sucesso.")
 
     def _extrair_solucao(self):
         """Extrai e formata os resultados do modelo resolvido."""
         if self.modelo_pli.status != pulp.LpStatusOptimal:
-            print("Nenhuma solução ótima encontrada para extrair.")
+            #print("Nenhuma solução ótima encontrada para extrair.")
             return
 
         dados = self.dados_preparados
@@ -81,7 +83,8 @@ class OtimizadorPLI(Otimizador):
             soma_pref = sum(dados["preferencias"][p][d] for p in dados["professores"] for d in dados["disciplinas"] if self.modelo_pli.variablesDict().get(f"Alocacao_{p}_{d}") and self.modelo_pli.variablesDict()[f"Alocacao_{p}_{d}"].varValue == 1)
             num_zero = sum(1 for p in dados["professores"] for d in dados["disciplinas"] if dados["preferencias"][p][d] == 0 and self.modelo_pli.variablesDict().get(f"Alocacao_{p}_{d}") and self.modelo_pli.variablesDict()[f"Alocacao_{p}_{d}"].varValue == 1)
         except Exception as e:
-            print(f"Não foi possível extrair métricas objetivo: {e}")
+            #print(f"Não foi possível extrair métricas objetivo: {e}")
+            pass
 
         self.resultados = {
             "alocacao_final": df_alocacao,
@@ -91,20 +94,20 @@ class OtimizadorPLI(Otimizador):
             "penalidade_total": (num_zero * self.config.get("PENALIDADE_W", 4)) if num_zero is not None else None,
             "metricas_iteracao": []
         }
-        print("Solução extraída e formatada.")
+        #print("Solução extraída e formatada.")
 
 
     def _resolver_nucleo(self, callback_iteracao=None):
         """Resolve PLI (single step); chama callback final se fornecido."""
         self._construir_modelo()
-        print("\nIniciando a resolução do modelo PLI...")
-        self.modelo_pli.solve()
-        print(f"Status da Solução: {pulp.LpStatus[self.modelo_pli.status]}")
+        #print("\nIniciando a resolução do modelo PLI...")
+        self.modelo_pli.solve(pulp.PULP_CBC_CMD(msg=False))
+        #print(f"Status da Solução: {pulp.LpStatus[self.modelo_pli.status]}")
         self._extrair_solucao()
-        if callback_iteracao is not None:
-            try:
-                callback_iteracao({"geracao": 1, "melhor_global": self.resultados.get("valor_objetivo")})
-            except Exception as e:
-                print(f"Callback PLI falhou: {e}")
+        #if callback_iteracao is not None:
+        #    try:
+        #        callback_iteracao({"geracao": 1, "melhor_global": self.resultados.get("valor_objetivo")})
+        #    except Exception as e:
+        #        print(f"Callback PLI falhou: {e}")
         return self.resultados
     

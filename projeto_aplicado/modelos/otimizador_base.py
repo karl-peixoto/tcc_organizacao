@@ -25,33 +25,74 @@ class Otimizador:
             try:
                 random.seed(self.seed)
                 np.random.seed(self.seed)
-                print(f"Seed definida: {self.seed}")
+                #print(f"Seed definida: {self.seed}")
             except Exception as e:
-                print(f"Falha ao definir seed {self.seed}: {e}")
+                #print(f"lhs_global[lhs_global['simulacao'] > 100]lha ao definir seed {self.seed}: {e}")
+                pass
 
         #Atributo para guardar a parte já resolvida da solução
         self.solucao_parcial_fixa = None
         
-        # O processo de carregar e preparar é comum a todos, então o chamamos aqui.
-        self._carregar_dados()
+        # Se recebermos DataFrames injetados no config, usamos diretamente e pulamos leitura de CSV.
+        dados_injetados = self.config.get("DADOS_INJETADOS")
+        if dados_injetados is not None:
+            self.dados_brutos = dados_injetados
+        else:
+            self._carregar_dados()
         self._preparar_dados()
-        print(f"Otimizador base inicializado. {len(self.alocacoes_fixas)} alocações foram fixadas.")
+        #print(f"Otimizador base inicializado. {len(self.alocacoes_fixas)} alocações foram fixadas.")
 
     def _carregar_dados(self):
         """Método para carregar os dados dos arquivos CSV."""
+        # Se já existir dados_brutos (por injeção), não recarregar
+        if self.dados_brutos is not None:
+            return
         try:
             caminho_raiz = Path(__file__).parent.parent.parent
             caminho_pasta_dados = caminho_raiz / "dados"
 
-            print(f"Buscando dados no diretório: {caminho_pasta_dados}")
+            #print(f"Buscando dados no diretório: {caminho_pasta_dados}")
             self.dados_brutos = {
                 nome: pd.read_csv(caminho_pasta_dados / nome_arquivo)
-                for nome, nome_arquivo in self.config["ARQUIVOS_DADOS"].items()
+                for nome, nome_arquivo in self.config.get("ARQUIVOS_DADOS", {}).items()
             }
-            print("Dados brutos carregados.")
+            #print("Dados brutos carregados.")
         except FileNotFoundError as e:
-            print(f"Erro: Arquivo não encontrado - {e}.")
+            #print(f"Erro: Arquivo não encontrado - {e}.")
             raise
+
+    def _normalizar_conflitos(self, df_conflitos_raw: pd.DataFrame, df_disciplinas: pd.DataFrame) -> pd.DataFrame:
+        """
+        Padroniza a matriz de conflitos para:
+        - índice e colunas = lista completa de id_disciplina
+        - remove coluna fantasma 'Unnamed: 0'
+        - garante simetria e diagonal zero
+        - tipo int (0/1)
+        """
+        df = df_conflitos_raw.copy()
+
+        # Se vier com coluna de índice salva
+        if 'Unnamed: 0' in df.columns and df.index.name != 'id_disciplina':
+            df.set_index('Unnamed: 0', inplace=True)
+        # Se a primeira coluna for id_disciplina explícita
+        elif df.columns[0] == 'id_disciplina' and df.index.name != 'id_disciplina':
+            df.set_index(df.columns[0], inplace=True)
+
+        disciplinas = df_disciplinas['id_disciplina'].tolist()
+
+        # Reindexa linhas e colunas
+        df = df.reindex(index=disciplinas, columns=disciplinas)
+
+        # Preenche ausentes
+        df = df.fillna(0)
+
+        # Força numérico 0/1
+        df = (df.astype(int) > 0).astype(int)
+
+        # Força simetria e diagonal zero
+        df.values[np.diag_indices_from(df)] = 0
+        df = ((df + df.T) > 0).astype(int)
+        return df
 
     def _preparar_preferencias(self, df_professores, df_disciplinas, df_preferencias):
         """Prepara a matriz completa de preferências, tratando valores ausentes."""
@@ -64,7 +105,7 @@ class Otimizador:
            
         # 1. Identifica a lista de professores que efetivamente responderam ao formulário
         professores_que_responderam = df_preferencias['id_docente'].unique().tolist()
-        print(f"{len(professores_que_responderam)} de {len(lista_professores_total)} professores responderam ao formulário.")
+        #print(f"{len(professores_que_responderam)} de {len(lista_professores_total)} professores responderam ao formulário.")
 
         # 2. Pivota o DataFrame de preferências como antes.
         df_prefs_pivot = df_preferencias.pivot(
@@ -109,6 +150,8 @@ class Otimizador:
         df_disciplinas = self.dados_brutos["disciplinas"]
         df_preferencias = self.dados_brutos["preferencias"]
         df_conflitos = self.dados_brutos["conflitos"]
+
+        df_conflitos = self._normalizar_conflitos(df_conflitos, df_disciplinas)
         
         # Lógica de preparação
         lista_professores_total = df_professores['id_docente'].tolist()
@@ -120,7 +163,7 @@ class Otimizador:
         # ch_disciplinas passa a ser custo unitário (1 disciplina = 1 unidade de capacidade).
         ch_max = df_professores.set_index('id_docente')['max_disciplinas'].to_dict()
         ch_disciplinas = {d: 1 for d in df_disciplinas['id_disciplina']}
-        df_conflitos.set_index(df_conflitos.columns[0], inplace=True)
+        #df_conflitos.set_index(df_conflitos.columns[0], inplace=True)
         matriz_conflitos = df_conflitos
 
         # --- Etapa 1: Processar e Isolar Alocações Fixas ---
@@ -142,7 +185,7 @@ class Otimizador:
 
         # Armazena a parte da solução que já está pronta
         self.solucao_parcial_fixa = pd.DataFrame(alocacoes_resolvidas)
-        print(f"{len(self.solucao_parcial_fixa)} alocações fixas validadas e separadas.")
+        #print(f"{len(self.solucao_parcial_fixa)} alocações fixas validadas e separadas.")
 
 
         # --- Etapa 2: Filtrar Professores e Disciplinas para criar o problema reduzido ---
@@ -169,6 +212,14 @@ class Otimizador:
         
         matriz_conflitos_reduzida = matriz_conflitos.loc[disciplinas_a_alocar, disciplinas_a_alocar]
 
+        # Pré-computar estrutura leve de conflitos (adjacência) para acelerar consultas
+        # Formato: {disciplina: set(disciplinas_em_conflito)}
+        conflito_adj = {}
+        if isinstance(matriz_conflitos_reduzida, pd.DataFrame):
+            for d in matriz_conflitos_reduzida.index:
+                linha = matriz_conflitos_reduzida.loc[d]
+                conflito_adj[d] = set(linha.index[linha.values.astype(int) == 1])
+
 
        # Armazena o problema final e reduzido que será visto pelos filhos
         self.dados_preparados = {
@@ -177,25 +228,31 @@ class Otimizador:
             "ch_max": ch_remanescente,
             "ch_disciplinas": ch_disciplinas_reduzido,
             "preferencias": prefs_reduzidas,
-            "matriz_conflitos": matriz_conflitos_reduzida
+            "matriz_conflitos": matriz_conflitos_reduzida,
+            "conflitos_adj": conflito_adj
         }
-        print("Dados preparados. O problema foi reduzido para a otimização.")
+        #print("Dados preparados. O problema foi reduzido para a otimização.")
+
+    def set_dados_brutos(self, dados: dict):
+        """Permite injetar DataFrames já prontos e reprocesar a preparação."""
+        self.dados_brutos = dados
+        self._preparar_dados()
 
     def resolver(self, callback_iteracao=None):
         """Executa otimização completa.
         callback_iteracao: função opcional chamada a cada iteração/geração pelos filhos.
         """
-        print("\n--- Iniciando Processo de Otimização ---")
+        #print("\n--- Iniciando Processo de Otimização ---")
         solucao_otimizada_parcial = self._resolver_nucleo(callback_iteracao=callback_iteracao)
         
         if solucao_otimizada_parcial is None:
-            print("Otimizador não encontrou uma solução.")
+            #print("Otimizador não encontrou uma solução.")
             self.resultados = None
             return None
 
         solucao_final = self._recompor_solucao(solucao_otimizada_parcial)
         self.resultados = solucao_final
-        print("--- Processo de Otimização Concluído ---")
+        #print("--- Processo de Otimização Concluído ---")
         return self.resultados
    
     def _resolver_nucleo(self, callback_iteracao=None):
